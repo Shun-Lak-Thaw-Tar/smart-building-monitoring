@@ -5,14 +5,14 @@ Engineering programme, University of Sunderland. The planned responsive prototyp
 supports Office Staff and Administrators/Maintenance staff across Building 216,
 Building 209 and JS Building, using simulated environmental readings.
 
-This phase provides only the project structure and development environment: a
-placeholder frontend and an independent API health endpoint. Authentication,
-feature pages, application endpoints, database tables and real IoT are not implemented.
+WBS 3.2 is complete: the placeholder frontend and API health endpoint are joined by
+the seven-table PostgreSQL schema, an initial Alembic migration and deterministic
+demo seeds. Authentication, feature pages, feature endpoints and real IoT are not implemented.
 
 ## Stack and architecture
 
 Browser → React / Vite / Tailwind → Axios REST requests → FastAPI → SQLAlchemy → PostgreSQL.
-The API/database connections in this architecture are planned for later phases.
+Database sessions are available; application API data access comes in WBS 3.3.
 
 - Frontend: JavaScript, React, Vite, Tailwind CSS, React Router DOM, Axios, Recharts, Lucide React.
 - Backend: Python, FastAPI, Uvicorn, Pydantic, pydantic-settings, SQLAlchemy, Psycopg, Alembic.
@@ -36,7 +36,7 @@ backend/
   alembic/versions/
   .env.example  alembic.ini  requirements.txt  pytest.ini  run.py
 database/
-  seeds/  README.md
+  seeds/  README.md  verify.sql
 docs/
 .gitignore
 README.md
@@ -97,7 +97,26 @@ placeholder/health endpoint. When configuration is needed, copy each example to
 Frontend variables prefixed `VITE_` are public. Backend settings load
 `backend/.env`; local CORS permits only http://localhost:5173 by default and is
 enabled only in development. Use that frontend address consistently.
-DATABASE_URL and JWT settings prepare for later work and are unused by health.
+DATABASE_URL is required for migrations, seeds and database tests, but is unused
+by health. JWT settings remain reserved for later authentication work.
+
+## PostgreSQL schema and baseline data
+
+Use a running PostgreSQL server (verified with 18.6), database `smart_building`, and
+dedicated login `smart_building_app`. Configure its URL in ignored `backend/.env`.
+See [database setup instructions](database/README.md) for provisioning and safe
+credential entry. Do not recreate an existing database or application role.
+
+From `backend/`:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m alembic current
+.\.venv\Scripts\python.exe -m app.db.seed
+```
+
+Baseline: 3 buildings, 9 equipment records and 15 simulated readings. Rerunning
+the seed adds no duplicates. No users or maintenance workflow records are seeded.
 
 ## Verification
 
@@ -114,10 +133,8 @@ Invoke-RestMethod http://localhost:8000/api/health
 ```
 
 The last command requires the backend server running in another terminal. Alembic
-heads/history are empty until the first migration is created.
+heads/history show initial revision `9cf1817549e9`.
 
 ## Next task
 
-**PostgreSQL Database Setup + Schema Implementation**. Configure PostgreSQL and a
-local development database, then implement the seven planned entities and initial
-migration. See `database/README.md`. This work has not started.
+**WBS 3.3 — FastAPI/PostgreSQL Data Access**. Not started.

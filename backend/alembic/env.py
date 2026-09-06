@@ -4,7 +4,7 @@ from sqlalchemy import create_engine, pool
 from app.core.config import settings
 from app.db.base import Base
 
-# Import future model modules here so their tables join Base.metadata.
+import app.models  # Register all seven models with Base.metadata.
 target_metadata = Base.metadata
 
 

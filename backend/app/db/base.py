@@ -2,4 +2,4 @@ from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    """Shared metadata for future models; no application tables exist yet."""
+    """Shared metadata for the seven application tables."""

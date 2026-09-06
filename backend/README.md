@@ -18,6 +18,27 @@ origins in `CORS_ORIGINS` (a JSON array). Production CORS is not configured.
 .\.venv\Scripts\python.exe -m alembic history
 ```
 
-Empty Alembic heads/history are expected. The migration environment and revision
-template are ready, but there are no model tables or revisions. Online migration
-commands require PostgreSQL and `DATABASE_URL`; do not run schema migrations yet.
+Expected Alembic head: `9cf1817549e9` (initial database schema).
+
+Configure DATABASE_URL in the ignored local `.env`, then run:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m alembic current
+.\.venv\Scripts\python.exe -m app.db.seed
+.\.venv\Scripts\python.exe -m alembic check
+```
+
+The seven models are registered through `app.models`. Database sessions in
+`app.db.session` are created lazily so health startup needs no database connection.
+Callers own commits; closing a session rolls back uncommitted work.
+
+The seed adds 3 buildings, 9 equipment records and 15 fixed simulated readings.
+Reruns insert only missing baseline rows. No users or workflow history are seeded.
+See [database instructions](../database/README.md) for provisioning, constraints,
+delete behaviour, timestamps and verification queries.
+
+Database tests require the migrated, seeded PostgreSQL baseline and roll back their
+temporary writes. Run only health checks with `python -m pytest -m "not database"`
+using the virtual environment Python. Missing DATABASE_URL skips database tests;
+a configured connection failure does not.
