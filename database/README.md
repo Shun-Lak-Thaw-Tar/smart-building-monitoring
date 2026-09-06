@@ -134,4 +134,6 @@ IDs. No usable hashes or persistent user/workflow data are created. With no
 DATABASE_URL, database tests explicitly skip; health tests still run. A configured
 but inaccessible database fails the integration checks.
 
-Next: **WBS 3.3 — FastAPI/PostgreSQL Data Access** (not implemented).
+WBS 3.3 now reads this unchanged schema through building, equipment and environment
+APIs. See `backend/README.md`. Next: **WBS 3.4 — Login, JWT Authentication and
+Role-Based Access Control** (not started).

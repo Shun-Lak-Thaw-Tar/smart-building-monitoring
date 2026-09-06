@@ -5,14 +5,14 @@ Engineering programme, University of Sunderland. The planned responsive prototyp
 supports Office Staff and Administrators/Maintenance staff across Building 216,
 Building 209 and JS Building, using simulated environmental readings.
 
-WBS 3.2 is complete: the placeholder frontend and API health endpoint are joined by
-the seven-table PostgreSQL schema, an initial Alembic migration and deterministic
-demo seeds. Authentication, feature pages, feature endpoints and real IoT are not implemented.
+WBS 3.2 and WBS 3.3 are complete: the seven-table PostgreSQL schema and demo seeds
+now support read-only building, equipment and environmental APIs. The frontend is
+still a placeholder. Write workflows, authentication and real IoT are not implemented.
 
 ## Stack and architecture
 
 Browser → React / Vite / Tailwind → Axios REST requests → FastAPI → SQLAlchemy → PostgreSQL.
-Database sessions are available; application API data access comes in WBS 3.3.
+FastAPI reads PostgreSQL using SQLAlchemy sessions; frontend integration comes later.
 
 - Frontend: JavaScript, React, Vite, Tailwind CSS, React Router DOM, Axios, Recharts, Lucide React.
 - Backend: Python, FastAPI, Uvicorn, Pydantic, pydantic-settings, SQLAlchemy, Psycopg, Alembic.
@@ -97,7 +97,7 @@ placeholder/health endpoint. When configuration is needed, copy each example to
 Frontend variables prefixed `VITE_` are public. Backend settings load
 `backend/.env`; local CORS permits only http://localhost:5173 by default and is
 enabled only in development. Use that frontend address consistently.
-DATABASE_URL is required for migrations, seeds and database tests, but is unused
+DATABASE_URL is required for resource APIs, migrations, seeds and database tests, but is unused
 by health. JWT settings remain reserved for later authentication work.
 
 ## PostgreSQL schema and baseline data
@@ -118,6 +118,30 @@ From `backend/`:
 Baseline: 3 buildings, 9 equipment records and 15 simulated readings. Rerunning
 the seed adds no duplicates. No users or maintenance workflow records are seeded.
 
+## Read-only resource APIs (WBS 3.3)
+
+Start the backend as shown above and open http://localhost:8000/docs.
+Restart an already-running backend after pulling these changes if it does not reload.
+
+| GET endpoint | Behaviour |
+|---|---|
+| `/api/buildings` | All buildings ordered by ID |
+| `/api/buildings/{building_id}` | One building, or 404 |
+| `/api/equipment` | Equipment with nested building details; optional `?building_id=1` |
+| `/api/equipment/{equipment_id}` | One equipment record, or 404 |
+| `/api/environment` | Latest simulated reading per building, ordered by building ID |
+| `/api/environment/{building_id}` | Newest-first history; `?limit=10`, allowed 1–100 |
+
+Collections are plain arrays. Empty collections return 200 with `[]`; unknown
+individual resources return 404. History for an existing building with no readings
+returns `readings: []`. Invalid parameters use FastAPI's standard 422 response.
+Database connectivity failures return 503 with `Database service unavailable`.
+
+Authentication protection is intentionally deferred to WBS 3.4.
+The future login uses name, password and selected STAFF/ADMIN role, with JWT/RBAC
+implemented in that phase. These read endpoints are currently unauthenticated.
+See [backend details](backend/README.md) for ordering and query behaviour.
+
 ## Verification
 
 From `frontend/`: `npm.cmd run build`.
@@ -137,4 +161,4 @@ heads/history show initial revision `9cf1817549e9`.
 
 ## Next task
 
-**WBS 3.3 — FastAPI/PostgreSQL Data Access**. Not started.
+**WBS 3.4 — Login, JWT Authentication and Role-Based Access Control**. Not started.

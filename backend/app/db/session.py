@@ -15,6 +15,10 @@ def get_engine() -> Engine:
 
 
 def get_session() -> Generator[Session, None, None]:
-    """One session per caller; callers explicitly own transaction commits."""
+    """FastAPI dependency: one session per request, closed even when a route fails.
+
+    Read routes never commit. Closing releases the connection and rolls back the
+    read transaction. The same cached engine is reused by seeds and tests.
+    """
     with Session(get_engine()) as session:
         yield session
