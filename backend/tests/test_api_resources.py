@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.security import create_access_token
 from app.db.session import get_engine, get_session
 from app.main import app
-from app.models import Building, Equipment, EnvironmentalReading, MaintenanceRequest, RequestStatusHistory, User
+from app.models import Building, Equipment, EnvironmentalReading, MaintenanceHistory, MaintenanceRequest, RequestStatusHistory, User
 
 pytestmark = pytest.mark.database
 
@@ -160,6 +160,7 @@ def test_building_without_readings(api_db, api_request):
 
 def test_empty_collections(api_db, api_request):
     # Only the existing demo tables are touched, entirely inside this rollback transaction.
+    api_db.execute(MaintenanceHistory.__table__.delete())
     api_db.execute(RequestStatusHistory.__table__.delete())
     api_db.execute(MaintenanceRequest.__table__.delete())
     api_db.execute(EnvironmentalReading.__table__.delete())

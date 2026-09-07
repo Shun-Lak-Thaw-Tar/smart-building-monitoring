@@ -24,18 +24,22 @@ def test_fresh_demo_seed_and_rerun(monkeypatch):
         transaction = connection.begin()
         try:
             # Build a fresh application demo inside an isolated rollback transaction.
+            connection.execute(MaintenanceHistory.__table__.delete())
             connection.execute(RequestStatusHistory.__table__.delete())
             connection.execute(MaintenanceRequest.__table__.delete())
             connection.execute(User.__table__.delete())
             with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
-                assert seed_demo(session) == {"users": 3, "requests": 4, "status_history": 7}
+                assert seed_demo(session) == {"users": 3, "requests": 4, "status_history": 7, "maintenance_history": 3}
                 hashes = list(session.scalars(select(User.password_hash).order_by(User.user_id)))
-                assert seed_demo(session) == {"users": 0, "requests": 0, "status_history": 0}
+                assert seed_demo(session) == {"users": 0, "requests": 0, "status_history": 0, "maintenance_history": 0}
                 assert list(session.scalars(select(User.password_hash).order_by(User.user_id))) == hashes
                 assert session.scalar(select(func.count()).select_from(User)) == 3
                 assert session.scalar(select(func.count()).select_from(MaintenanceRequest)) == 4
                 assert session.scalar(select(func.count()).select_from(RequestStatusHistory)) == 7
-                assert session.scalar(select(func.count()).select_from(MaintenanceHistory)) == 0
+                assert session.scalar(select(func.count()).select_from(MaintenanceHistory)) == 3
+                work = session.scalars(select(MaintenanceHistory).order_by(MaintenanceHistory.completed_at)).all()
+                assert [row.request_id is not None for row in work] == [True, False, False]
+                assert work[0].request.status == "RESOLVED" and work[0].request.equipment_id == work[0].equipment_id
                 staff = session.scalar(select(User).where(User.name == "Demo Staff"))
                 assert verify_password(passwords["demo_staff_password"], staff.password_hash)
                 requests = session.scalars(select(MaintenanceRequest).order_by(MaintenanceRequest.created_at)).all()
@@ -47,7 +51,7 @@ def test_fresh_demo_seed_and_rerun(monkeypatch):
                     assert all(row.changed_by == request.assigned_to for row in history[1:])
                 requests[0].status = "RESOLVED"
                 session.flush()
-                assert seed_demo(session) == {"users": 0, "requests": 0, "status_history": 0}
+                assert seed_demo(session) == {"users": 0, "requests": 0, "status_history": 0, "maintenance_history": 0}
                 assert requests[0].status == "RESOLVED"
         finally:
             transaction.rollback()

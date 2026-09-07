@@ -5,9 +5,10 @@ Engineering programme, University of Sunderland. The planned responsive prototyp
 supports Office Staff and Administrators/Maintenance staff across Building 216,
 Building 209 and JS Building, using simulated environmental readings.
 
-The backend now implements WBS 3.2–3.5: PostgreSQL, resource reads, login/JWT/RBAC,
-and the maintenance request workflow. The frontend remains a placeholder.
-Equipment writes, maintenance-history features, dashboards and real IoT are not implemented.
+The backend now implements WBS 3.2–3.7: PostgreSQL, resource reads, login/JWT/RBAC,
+maintenance requests, equipment management, completed maintenance records and
+derived building monitoring. The frontend remains a placeholder. Dashboard-specific
+APIs and real IoT are not implemented.
 
 ## Stack and architecture
 
@@ -135,7 +136,8 @@ From `backend/`, run the separate application seed:
 
 It creates Demo Staff (STAFF), Demo Admin (ADMIN), Maintenance Admin (ADMIN), four
 demo requests and seven status timeline events. Reruns do not duplicate or reset
-existing records/password hashes. It never creates maintenance_history rows.
+existing records/password hashes. It also creates three completed maintenance
+records: one linked repair record and two preventive maintenance records.
 
 Login at `POST /api/auth/login` with JSON name, password and role. The selected
 role must match the database account. Use the returned Bearer token in `/docs`
@@ -175,6 +177,24 @@ All six resource reads now require a valid Bearer JWT for either STAFF or ADMIN.
 Only health and login remain public application endpoints.
 See [backend details](backend/README.md) for ordering and query behaviour.
 
+## Equipment, maintenance history and monitoring (WBS 3.6–3.7)
+
+Admins can add equipment and update its name/type/location/status. PATCH cannot
+move equipment between buildings, and no equipment deletion API is provided.
+Completed maintenance is recorded separately from request resolution; linking work
+requires a matching RESOLVED request. Preventive work may omit request_id. Recording
+work never automatically changes equipment status or request status/timeline.
+
+Authenticated STAFF and ADMIN can read `/api/monitoring/buildings` and
+`/api/monitoring/buildings/{building_id}` for equipment/request counts, the latest
+simulated environment reading and dynamically derived status:
+
+- CRITICAL: out-of-service equipment or an unresolved HIGH-priority request.
+- ATTENTION: otherwise, maintenance-required equipment or an unresolved LOW/MEDIUM request.
+- NORMAL: neither condition applies. Environmental values do not affect status.
+
+See [backend API documentation](backend/README.md) for all seven new endpoints.
+
 ## Verification
 
 From `frontend/`: `npm.cmd run build`.
@@ -194,5 +214,5 @@ heads/history show initial revision `9cf1817549e9`.
 
 ## Next task
 
-**WBS 3.6 + 3.7 — Equipment Management, Maintenance History and Building Monitoring**.
+**WBS 3.8 + 3.9 + 3.10 — React Frontend Application**.
 Not started.

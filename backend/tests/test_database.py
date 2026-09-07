@@ -197,7 +197,7 @@ def test_seed_counts_and_idempotency(connection):
         assert before == after
         assert {name: after[name] for name in ("buildings", "equipment", "environmental_readings")} == {
             "buildings": 3, "equipment": 9, "environmental_readings": 15}
-        assert after["maintenance_history"] == 0
+        assert after["maintenance_history"] == before["maintenance_history"]
         assert set(session.scalars(select(Building.building_name))) == set(BUILDINGS)
         assert session.scalar(select(func.count()).select_from(Equipment).join(Building)) == 9
         assert session.scalar(select(func.count()).select_from(EnvironmentalReading).join(Building)) == 15

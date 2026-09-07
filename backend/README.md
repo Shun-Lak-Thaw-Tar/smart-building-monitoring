@@ -226,7 +226,9 @@ Run `app.db.seed` for 3 buildings/9 equipment/15 readings, then `app.db.seed_dem
 for 3 users/4 requests/7 timeline rows. Demo statuses are PENDING, IN_PROGRESS,
 RESOLVED, PENDING. Fixed UTC submission timestamps and submitter identify demo
 requests; advisory locking serializes seed invocations. Existing requests/history
-are preserved rather than reset. No maintenance_history records are created.
+are preserved rather than reset. The extended seed also adds three completed
+maintenance records with fixed timestamps: one linked to the resolved Projector 07
+request and two preventive records. Reruns add no duplicate maintenance rows.
 
 Tests use PostgreSQL rollback transactions and random temporary test credentials.
 Application-data isolation may temporarily remove demo rows inside test transactions;
@@ -242,5 +244,81 @@ It reads credentials locally, checks login/RBAC and the request workflow, and re
 only its uniquely marked temporary request (timeline rows cascade). It prints neither
 tokens nor passwords. Full regression: `.\.venv\Scripts\python.exe -m pytest -q`.
 
-Next: **WBS 3.6 + 3.7 — Equipment Management, Maintenance History and Building Monitoring**.
-Not started.
+## WBS 3.6 — Equipment and completed maintenance
+
+| Endpoint | Access / behaviour |
+|---|---|
+| POST /api/equipment | ADMIN; creates equipment, returns 201 |
+| PATCH /api/equipment/{equipment_id} | ADMIN; updates equipment, returns 200 |
+| GET /api/maintenance-history | ADMIN; newest-first completed work |
+| POST /api/maintenance-history | ADMIN; records completed work, returns 201 |
+| GET /api/equipment/{equipment_id}/history | ADMIN; newest-first equipment history |
+
+Equipment creation accepts building_id, equipment_name (1–150), equipment_type
+(1–100), location (1–150), and status (defaults to OPERATIONAL). Text is trimmed.
+PATCH allows only name/type/location/status, requires at least one non-null field,
+and rejects building_id and unsupported fields. Same-value updates issue no UPDATE.
+Existing EquipmentResponse is reused. Unknown building/equipment returns the existing
+404 messages. Invalid bodies/enums use 422; staff writes receive 403.
+
+Equipment cannot be moved between buildings or deleted through this API. Use
+OUT_OF_SERVICE to retain historical context.
+
+Maintenance creation accepts equipment_id, optional request_id, and trimmed
+action_details (1–2000 characters). completed_by comes from the authenticated admin;
+completed_at uses the existing database timestamp default. Both client overrides
+are rejected. Linked requests must exist, reference the selected equipment (not
+NULL), and be RESOLVED. Violations return respectively 404, 400 with
+`Maintenance request does not belong to the selected equipment`, or 400 with
+`Maintenance request must be resolved before recording completed maintenance`.
+
+Preventive work has request_id=null. Multiple completed actions may link to one
+resolved request. Recording work and resolving requests remain independent:
+neither implicitly creates the other, and recording work does not update equipment.
+All validations/insertion share one transaction; failed writes roll back. A linked
+request is locked while its state is validated to serialize concurrent status edits.
+
+Responses include history_id, equipment ID/name and nested building, optional
+request ID/status, completed_by user brief, action_details and completed_at.
+GET collection accepts optional building_id/equipment_id filters with AND semantics;
+no matching rows return `[]`. Both history reads sort completed_at DESC, history_id
+DESC. Unknown equipment returns 404; known equipment without history returns `[]`.
+Nested equipment/building/request/actor are eagerly loaded to avoid N+1 queries.
+
+## WBS 3.7 — Building monitoring
+
+GET `/api/monitoring/buildings` and `/api/monitoring/buildings/{building_id}` allow
+both STAFF and ADMIN. Collections sort building_id ASC; unknown individual buildings
+return 404 `Building not found`. Responses include building brief, overall_status,
+latest_environment (or null), equipment_summary and request_summary.
+
+Equipment counts: total, operational, maintenance_required, out_of_service.
+Request counts: total, pending, in_progress, resolved, unresolved_high_priority.
+Unresolved means PENDING or IN_PROGRESS. Counts come from grouped PostgreSQL queries.
+
+Status is derived dynamically, never persisted:
+
+1. CRITICAL if any equipment is OUT_OF_SERVICE or any unresolved request has HIGH priority.
+2. Otherwise ATTENTION if any equipment is MAINTENANCE_REQUIRED or any unresolved LOW/MEDIUM request exists.
+3. Otherwise NORMAL. A resolved HIGH request alone does not cause CRITICAL.
+
+Environmental readings remain simulated and display-only; there are no thresholds,
+sensor ingestion APIs, WebSockets or real IoT. Latest uses recorded_at DESC with
+reading_id DESC as tie-breaker. A building without readings still returns a summary
+with latest_environment=null. Existing `/api/environment` endpoints retain their purpose.
+
+Monitoring performs four bounded resource queries (buildings, grouped equipment,
+grouped requests, latest readings), plus authentication. Query count does not grow
+per building. An empty building collection returns `[]` after the building query.
+
+Batch 2 live verification against a fresh server:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify_batch2.py --base-url http://127.0.0.1:8003
+```
+
+The helper uses local credentials and removes only its uniquely marked temporary
+equipment/history after checks. No delete endpoint is introduced. The full suite
+continues using rollback-only PostgreSQL test data. Models and Alembic remain unchanged.
+
+Next: **WBS 3.8 + 3.9 + 3.10 — React Frontend Application**. Not started.

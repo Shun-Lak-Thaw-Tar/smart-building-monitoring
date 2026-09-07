@@ -11,7 +11,7 @@ from app.core.security import create_access_token, hash_password, verify_passwor
 from app.db.seed_demo import seed_users
 from app.db.session import get_engine, get_session
 from app.main import app
-from app.models import MaintenanceRequest, RequestStatusHistory, User
+from app.models import MaintenanceHistory, MaintenanceRequest, RequestStatusHistory, User
 
 pytestmark = pytest.mark.database
 
@@ -35,6 +35,7 @@ def auth_db(monkeypatch):
     with get_engine().connect() as connection:
         transaction = connection.begin()
         # Isolate request tests from any persisted demo workflow, then roll back.
+        connection.execute(MaintenanceHistory.__table__.delete())
         connection.execute(RequestStatusHistory.__table__.delete())
         connection.execute(MaintenanceRequest.__table__.delete())
         connection.execute(User.__table__.insert(), [

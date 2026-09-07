@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import hash_password
 from app.db.session import get_engine
-from app.models import Building, Equipment, MaintenanceRequest, RequestStatusHistory, User
+from app.models import Building, Equipment, MaintenanceHistory, MaintenanceRequest, RequestStatusHistory, User
 
 DEMO_USERS = (
     ("Demo Staff", "STAFF", "demo_staff_password"),
@@ -25,6 +25,14 @@ DEMO_REQUESTS = (
      "Water pump is making an unusual noise during operation.", "HIGH", None, ("PENDING",)),
 )
 DEMO_START = datetime(2026, 9, 2, 8, tzinfo=timezone.utc)
+DEMO_MAINTENANCE = (
+    ("Building 209", "Projector 07", "Demo Admin", True,
+     "Power fault confirmed; projector isolated and marked out of service pending replacement."),
+    ("Building 216", "Air Conditioner 01", "Maintenance Admin", False,
+     "Routine filter inspection and cleaning completed."),
+    ("JS Building", "Lighting Zone B", "Demo Admin", False,
+     "Routine lighting inspection completed; no fault found."),
+)
 
 
 def seed_users(session: Session) -> tuple[dict[str, User], int]:
@@ -50,7 +58,7 @@ def seed_users(session: Session) -> tuple[dict[str, User], int]:
 
 def seed_demo(session: Session) -> dict[str, int]:
     users, users_added = seed_users(session)
-    added = {"users": users_added, "requests": 0, "status_history": 0}
+    added = {"users": users_added, "requests": 0, "status_history": 0, "maintenance_history": 0}
     staff = users["Demo Staff"]
     for index, (building_name, equipment_name, room, category, description, priority, assigned_name, statuses) in enumerate(DEMO_REQUESTS):
         created_at = DEMO_START + timedelta(hours=index)
@@ -88,6 +96,28 @@ def seed_demo(session: Session) -> dict[str, int]:
             ))
             added["status_history"] += 1
         added["requests"] += 1
+    session.flush()
+    for index, (building_name, equipment_name, actor_name, linked, action) in enumerate(DEMO_MAINTENANCE):
+        equipment = session.scalar(select(Equipment).join(Equipment.building).where(
+            Building.building_name == building_name, Equipment.equipment_name == equipment_name).limit(1))
+        if equipment is None:
+            raise RuntimeError("Run python -m app.db.seed before the demo application seed.")
+        completed_at = datetime(2026, 9, 3, 8, tzinfo=timezone.utc) + timedelta(hours=index)
+        existing = session.scalar(select(MaintenanceHistory.history_id).where(
+            MaintenanceHistory.equipment_id == equipment.equipment_id, MaintenanceHistory.completed_at == completed_at).limit(1))
+        if existing is not None:
+            continue
+        request = None
+        if linked:
+            request = session.scalar(select(MaintenanceRequest).where(
+                MaintenanceRequest.submitted_by == staff.user_id,
+                MaintenanceRequest.created_at == DEMO_START + timedelta(hours=2)))
+            if request is None or request.equipment_id != equipment.equipment_id or request.status != "RESOLVED":
+                raise RuntimeError("Demo projector request must match its equipment and be RESOLVED before seeding linked work.")
+        session.add(MaintenanceHistory(equipment_id=equipment.equipment_id,
+            request_id=request.request_id if request else None, completed_by=users[actor_name].user_id,
+            action_details=action, completed_at=completed_at))
+        added["maintenance_history"] += 1
     session.flush()
     return added
 

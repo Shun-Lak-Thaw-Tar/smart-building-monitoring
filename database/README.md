@@ -118,7 +118,8 @@ Open `verify.sql` in pgAdmin connected to `smart_building`, or run from the repo
 ```
 
 Expected: eight public tables including Alembic, 3 building rows, 9 equipment JOIN
-rows, 15 reading JOIN rows, and zero rows in the four unseeded application tables.
+rows and 15 reading JOIN rows. After the separate application demo seed, there are
+3 users, 4 requests, 7 request-status-history events and 3 maintenance-history records.
 The queries also show real constraint definitions and indexes.
 
 From `backend/`, run tests after migration and seed:
@@ -137,8 +138,13 @@ but inaccessible database fails the integration checks.
 WBS 3.3–3.5 now use this unchanged schema for protected resource reads, login/RBAC
 and maintenance requests. The separate `python -m app.db.seed_demo` command adds
 3 Argon2-hashed demo users, 4 requests and 7 status events using local password
-configuration. It does not add maintenance_history records. The WBS 3.2 seed
+configuration. Batch 2 extends it with 3 idempotent completed-maintenance records:
+Projector 07 repair documentation, Air Conditioner 01 preventive cleaning, and
+Lighting Zone B inspection. Existing user/request/timeline identities are preserved.
+The WBS 3.2 seed
 remains separate and unchanged. See `backend/README.md` for configuration and use.
 
-Next: **WBS 3.6 + 3.7 — Equipment Management, Maintenance History and Building
-Monitoring** (not started).
+Building status is derived from existing equipment/request data and is not stored.
+No Batch 2 schema change or migration was required.
+
+Next: **WBS 3.8 + 3.9 + 3.10 — React Frontend Application** (not started).

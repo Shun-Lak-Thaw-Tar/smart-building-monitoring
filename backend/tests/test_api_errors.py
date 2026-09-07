@@ -87,6 +87,8 @@ def test_openapi_and_read_only_routes(api_request):
     assert set(schema["paths"]) == resources | {
         "/api/health", "/api/auth/login", "/api/auth/me", "/api/users/admins",
         "/api/users/staff",
+        "/api/maintenance-history", "/api/equipment/{equipment_id}/history",
+        "/api/monitoring/buildings", "/api/monitoring/buildings/{building_id}",
         "/api/requests", "/api/requests/my", "/api/requests/{request_id}",
         "/api/requests/{request_id}/assign", "/api/requests/{request_id}/status", "/api/requests/{request_id}/history",
     }
@@ -97,7 +99,8 @@ def test_openapi_and_read_only_routes(api_request):
             else:
                 assert operation.get("security")
     for path in resources:
-        assert set(schema["paths"][path]) == {"get"}
+        expected_methods = {"get", "post"} if path == "/api/equipment" else {"get", "patch"} if path == "/api/equipment/{equipment_id}" else {"get"}
+        assert set(schema["paths"][path]) == expected_methods
         operation = schema["paths"][path]["get"]
         assert operation["summary"]
         assert "200" in operation["responses"] and "503" in operation["responses"]
@@ -107,4 +110,4 @@ def test_openapi_and_read_only_routes(api_request):
         "OPERATIONAL", "MAINTENANCE_REQUIRED", "OUT_OF_SERVICE"]
     reading = schema["components"]["schemas"]["EnvironmentalReadingResponse"]["properties"]
     assert all(reading[field]["type"] == "number" for field in ("temperature", "humidity", "energy_consumption"))
-    assert api_request("/api/equipment", method="POST").status_code == 405
+    assert api_request("/api/equipment/1", method="DELETE").status_code == 405
