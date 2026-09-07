@@ -5,9 +5,9 @@ Engineering programme, University of Sunderland. The planned responsive prototyp
 supports Office Staff and Administrators/Maintenance staff across Building 216,
 Building 209 and JS Building, using simulated environmental readings.
 
-WBS 3.2 and WBS 3.3 are complete: the seven-table PostgreSQL schema and demo seeds
-now support read-only building, equipment and environmental APIs. The frontend is
-still a placeholder. Write workflows, authentication and real IoT are not implemented.
+The backend now implements WBS 3.2–3.5: PostgreSQL, resource reads, login/JWT/RBAC,
+and the maintenance request workflow. The frontend remains a placeholder.
+Equipment writes, maintenance-history features, dashboards and real IoT are not implemented.
 
 ## Stack and architecture
 
@@ -16,7 +16,7 @@ FastAPI reads PostgreSQL using SQLAlchemy sessions; frontend integration comes l
 
 - Frontend: JavaScript, React, Vite, Tailwind CSS, React Router DOM, Axios, Recharts, Lucide React.
 - Backend: Python, FastAPI, Uvicorn, Pydantic, pydantic-settings, SQLAlchemy, Psycopg, Alembic.
-- Future security: PyJWT and pwdlib with Argon2; STAFF / ADMIN access control.
+- Security: PyJWT and pwdlib with Argon2; STAFF / ADMIN access control.
 - Testing: Pytest, HTTPX; Postman for manual API checks.
 
 ## Structure
@@ -98,7 +98,9 @@ Frontend variables prefixed `VITE_` are public. Backend settings load
 `backend/.env`; local CORS permits only http://localhost:5173 by default and is
 enabled only in development. Use that frontend address consistently.
 DATABASE_URL is required for resource APIs, migrations, seeds and database tests, but is unused
-by health. JWT settings remain reserved for later authentication work.
+by health. JWT_SECRET must be a strong random value of at least 32 bytes;
+JWT_ALGORITHM is HS256 and JWT_EXPIRE_MINUTES controls token lifetime.
+Never replace an existing `.env` with the example when updating the project.
 
 ## PostgreSQL schema and baseline data
 
@@ -116,7 +118,39 @@ From `backend/`:
 ```
 
 Baseline: 3 buildings, 9 equipment records and 15 simulated readings. Rerunning
-the seed adds no duplicates. No users or maintenance workflow records are seeded.
+the seed adds no duplicates. This baseline command does not seed users or requests.
+
+## Authentication and request workflow (WBS 3.4–3.5)
+
+Set DEMO_STAFF_PASSWORD, DEMO_ADMIN_PASSWORD and DEMO_MAINTENANCE_ADMIN_PASSWORD
+in ignored `backend/.env` to distinct strong passwords of at least 12 characters.
+The example contains only CHANGE_ME placeholders. Local random values were generated
+with permission during setup; view them only in your local configuration.
+
+From `backend/`, run the separate application seed:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.db.seed_demo
+```
+
+It creates Demo Staff (STAFF), Demo Admin (ADMIN), Maintenance Admin (ADMIN), four
+demo requests and seven status timeline events. Reruns do not duplicate or reset
+existing records/password hashes. It never creates maintenance_history rows.
+
+Login at `POST /api/auth/login` with JSON name, password and role. The selected
+role must match the database account. Use the returned Bearer token in `/docs`
+via **Authorize**. `/api/auth/me` returns the current database user.
+
+Staff submit requests at `POST /api/requests`, list their own at
+`GET /api/requests/my`, and view their own details/history. Admins list/filter all
+requests, retrieve `/api/users/admins`, assign requests, and update status.
+See [backend API instructions](backend/README.md) for the exact endpoints and errors.
+
+Administrators can list and create Office Staff accounts using
+`GET /api/users/staff` and `POST /api/users/staff`. Creation accepts name/password,
+always assigns STAFF server-side, and stores an Argon2 hash. Multiple Staff accounts
+are supported; each sees only their own maintenance requests. Account editing,
+deletion, password reset and administrator creation are not implemented.
 
 ## Read-only resource APIs (WBS 3.3)
 
@@ -137,9 +171,8 @@ individual resources return 404. History for an existing building with no readin
 returns `readings: []`. Invalid parameters use FastAPI's standard 422 response.
 Database connectivity failures return 503 with `Database service unavailable`.
 
-Authentication protection is intentionally deferred to WBS 3.4.
-The future login uses name, password and selected STAFF/ADMIN role, with JWT/RBAC
-implemented in that phase. These read endpoints are currently unauthenticated.
+All six resource reads now require a valid Bearer JWT for either STAFF or ADMIN.
+Only health and login remain public application endpoints.
 See [backend details](backend/README.md) for ordering and query behaviour.
 
 ## Verification
@@ -161,4 +194,5 @@ heads/history show initial revision `9cf1817549e9`.
 
 ## Next task
 
-**WBS 3.4 — Login, JWT Authentication and Role-Based Access Control**. Not started.
+**WBS 3.6 + 3.7 — Equipment Management, Maintenance History and Building Monitoring**.
+Not started.

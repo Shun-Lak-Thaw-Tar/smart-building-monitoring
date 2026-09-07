@@ -7,7 +7,17 @@ from sqlalchemy.exc import InterfaceError, OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_session
+from app.core.dependencies import get_current_user
 from app.main import app
+from app.models import User
+
+
+@pytest.fixture(autouse=True)
+def authenticated_for_resource_error_tests():
+    # Isolate existing resource failure handling; auth has its own PostgreSQL tests.
+    app.dependency_overrides[get_current_user] = lambda: User(user_id=-1, name="test", role="STAFF")
+    yield
+    app.dependency_overrides.pop(get_current_user)
 
 
 @pytest.fixture
@@ -73,7 +83,19 @@ def test_openapi_and_read_only_routes(api_request):
     schema = api_request("/openapi.json").json()
     resources = {"/api/buildings", "/api/buildings/{building_id}", "/api/equipment",
                  "/api/equipment/{equipment_id}", "/api/environment", "/api/environment/{building_id}"}
-    assert set(schema["paths"]) == resources | {"/api/health"}
+    assert resources | {"/api/health", "/api/auth/login", "/api/auth/me", "/api/users/admins"} <= set(schema["paths"])
+    assert set(schema["paths"]) == resources | {
+        "/api/health", "/api/auth/login", "/api/auth/me", "/api/users/admins",
+        "/api/users/staff",
+        "/api/requests", "/api/requests/my", "/api/requests/{request_id}",
+        "/api/requests/{request_id}/assign", "/api/requests/{request_id}/status", "/api/requests/{request_id}/history",
+    }
+    for path, methods in schema["paths"].items():
+        for method, operation in methods.items():
+            if path in {"/api/auth/login", "/api/health"}:
+                assert not operation.get("security")
+            else:
+                assert operation.get("security")
     for path in resources:
         assert set(schema["paths"][path]) == {"get"}
         operation = schema["paths"][path]["get"]

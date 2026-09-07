@@ -134,6 +134,11 @@ IDs. No usable hashes or persistent user/workflow data are created. With no
 DATABASE_URL, database tests explicitly skip; health tests still run. A configured
 but inaccessible database fails the integration checks.
 
-WBS 3.3 now reads this unchanged schema through building, equipment and environment
-APIs. See `backend/README.md`. Next: **WBS 3.4 — Login, JWT Authentication and
-Role-Based Access Control** (not started).
+WBS 3.3–3.5 now use this unchanged schema for protected resource reads, login/RBAC
+and maintenance requests. The separate `python -m app.db.seed_demo` command adds
+3 Argon2-hashed demo users, 4 requests and 7 status events using local password
+configuration. It does not add maintenance_history records. The WBS 3.2 seed
+remains separate and unchanged. See `backend/README.md` for configuration and use.
+
+Next: **WBS 3.6 + 3.7 — Equipment Management, Maintenance History and Building
+Monitoring** (not started).

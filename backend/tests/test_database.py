@@ -194,8 +194,10 @@ def test_seed_counts_and_idempotency(connection):
         assert seed_baseline(session) == {"buildings": 0, "equipment": 0, "environmental_readings": 0}
         assert seed_baseline(session) == {"buildings": 0, "equipment": 0, "environmental_readings": 0}
         after = {name: session.scalar(select(func.count()).select_from(table)) for name, table in Base.metadata.tables.items()}
-        assert before == after == {"buildings": 3, "equipment": 9, "environmental_readings": 15,
-            "users": 0, "maintenance_requests": 0, "request_status_history": 0, "maintenance_history": 0}
+        assert before == after
+        assert {name: after[name] for name in ("buildings", "equipment", "environmental_readings")} == {
+            "buildings": 3, "equipment": 9, "environmental_readings": 15}
+        assert after["maintenance_history"] == 0
         assert set(session.scalars(select(Building.building_name))) == set(BUILDINGS)
         assert session.scalar(select(func.count()).select_from(Equipment).join(Building)) == 9
         assert session.scalar(select(func.count()).select_from(EnvironmentalReading).join(Building)) == 15

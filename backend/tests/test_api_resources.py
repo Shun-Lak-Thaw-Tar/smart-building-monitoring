@@ -1,23 +1,29 @@
 from datetime import datetime, timezone
+import secrets
 
 import pytest
 from sqlalchemy import event, func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.security import create_access_token
 from app.db.session import get_engine, get_session
 from app.main import app
-from app.models import Building, Equipment, EnvironmentalReading
+from app.models import Building, Equipment, EnvironmentalReading, MaintenanceRequest, RequestStatusHistory, User
 
 pytestmark = pytest.mark.database
 
 
 @pytest.fixture
-def api_db():
+def api_db(api_headers, monkeypatch):
     if not settings.database_url:
         pytest.skip("Configure DATABASE_URL and migrate/seed PostgreSQL for API tests.")
     with get_engine().connect() as connection:
         transaction = connection.begin()
+        monkeypatch.setattr(settings, "jwt_secret", secrets.token_urlsafe(48))
+        user = User(user_id=-34590, name="__read_api_staff__", role="STAFF", password_hash="!test-only-unusable")
+        connection.execute(User.__table__.insert().values(user_id=user.user_id, name=user.name, role=user.role, password_hash=user.password_hash))
+        api_headers["Authorization"] = "Bearer " + create_access_token(user)
 
         def session_override():
             with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
@@ -154,6 +160,8 @@ def test_building_without_readings(api_db, api_request):
 
 def test_empty_collections(api_db, api_request):
     # Only the existing demo tables are touched, entirely inside this rollback transaction.
+    api_db.execute(RequestStatusHistory.__table__.delete())
+    api_db.execute(MaintenanceRequest.__table__.delete())
     api_db.execute(EnvironmentalReading.__table__.delete())
     api_db.execute(Equipment.__table__.delete())
     api_db.execute(Building.__table__.delete())
@@ -173,6 +181,6 @@ def test_single_select_for_nested_collections(api_db, api_request, path):
     event.listen(api_db, "before_cursor_execute", record)
     try:
         assert api_request(path).status_code == 200
-        assert len(selects) == 1
+        assert len(selects) == 2  # One current-user lookup plus one resource SELECT.
     finally:
         event.remove(api_db, "before_cursor_execute", record)

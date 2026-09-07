@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -15,9 +16,12 @@ class Settings(BaseSettings):
     app_port: int = 8000
     cors_origins: list[str] = ["http://localhost:5173"]
     database_url: str | None = None
-    jwt_secret: str | None = None
+    jwt_secret: str | None = Field(default=None, repr=False)
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 30
+    demo_staff_password: str | None = Field(default=None, repr=False)
+    demo_admin_password: str | None = Field(default=None, repr=False)
+    demo_maintenance_admin_password: str | None = Field(default=None, repr=False)
 
 
 settings = Settings()
