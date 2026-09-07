@@ -7,13 +7,14 @@ Building 209 and JS Building, using simulated environmental readings.
 
 The backend now implements WBS 3.2–3.7: PostgreSQL, resource reads, login/JWT/RBAC,
 maintenance requests, equipment management, completed maintenance records and
-derived building monitoring. The frontend remains a placeholder. Dashboard-specific
+derived building monitoring. WBS 3.8–3.10 now provides the responsive Staff and Admin
+frontend, with login, requests, management tools and simulated monitoring. Dashboard-specific
 APIs and real IoT are not implemented.
 
 ## Stack and architecture
 
 Browser → React / Vite / Tailwind → Axios REST requests → FastAPI → SQLAlchemy → PostgreSQL.
-FastAPI reads PostgreSQL using SQLAlchemy sessions; frontend integration comes later.
+FastAPI reads PostgreSQL using SQLAlchemy sessions; React integrates through the existing REST API.
 
 - Frontend: JavaScript, React, Vite, Tailwind CSS, React Router DOM, Axios, Recharts, Lucide React.
 - Backend: Python, FastAPI, Uvicorn, Pydantic, pydantic-settings, SQLAlchemy, Psycopg, Alembic.
@@ -197,7 +198,7 @@ See [backend API documentation](backend/README.md) for all seven new endpoints.
 
 ## Verification
 
-From `frontend/`: `npm.cmd run build`.
+From `frontend/`: `npm.cmd run build`. No lint script is configured. See [frontend verification](docs/frontend-verification.md) for live browser checks and the [frontend guide](frontend/README.md) for routes and local startup.
 
 From `backend/`:
 
@@ -214,5 +215,5 @@ heads/history show initial revision `9cf1817549e9`.
 
 ## Next task
 
-**WBS 3.8 + 3.9 + 3.10 — React Frontend Application**.
+**WBS 3.11 — Full Integration, Validation, Error Handling and Hardening**.
 Not started.
