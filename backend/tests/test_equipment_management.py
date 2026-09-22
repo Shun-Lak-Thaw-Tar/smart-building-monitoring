@@ -54,3 +54,35 @@ def test_equipment_permissions_and_missing(auth_db, tokens, api_request, equipme
     assert response.status_code == 404 and response.json() == {"detail": "Building not found"}
     response = api_request("/api/equipment/999999", "PATCH", headers=tokens["ADMIN"], json={"status": "OPERATIONAL"})
     assert response.status_code == 404 and response.json() == {"detail": "Equipment not found"}
+
+
+def test_admin_created_equipment_is_fresh_for_staff_requests(auth_db, tokens, api_request, equipment_body):
+    """A prior Staff read must not hide equipment subsequently created by Admin."""
+    path = "/api/equipment?building_id=1"
+    before = api_request(path, headers=tokens["STAFF"])
+    assert before.status_code == 200
+    existing_ids = {item["equipment_id"] for item in before.json()}
+
+    created = api_request("/api/equipment", "POST", headers=tokens["ADMIN"], json=equipment_body)
+    assert created.status_code == 201
+    equipment_id = created.json()["equipment_id"]
+    current = api_request(path, headers=tokens["STAFF"])
+    assert current.status_code == 200
+    assert {item["equipment_id"] for item in current.json()} == existing_ids | {equipment_id}
+    assert all(item["building"]["building_id"] == 1 for item in current.json())
+    other = api_request("/api/equipment?building_id=2", headers=tokens["STAFF"])
+    assert other.status_code == 200
+    assert equipment_id not in {item["equipment_id"] for item in other.json()}
+
+    assert api_request("/api/equipment", "POST", headers=tokens["STAFF"], json=equipment_body).status_code == 403
+    assert api_request(f"/api/equipment/{equipment_id}", "PATCH", headers=tokens["STAFF"], json={"status": "OUT_OF_SERVICE"}).status_code == 403
+    body = {"building_id": 1, "equipment_id": equipment_id, "room_location": "Room 210",
+            "fault_category": "Equipment", "description": "Check the newly added sensor", "priority": "MEDIUM"}
+    submitted = api_request("/api/requests", "POST", headers=tokens["STAFF"], json=body)
+    assert submitted.status_code == 201
+    assert submitted.json()["equipment"]["equipment_id"] == equipment_id
+    mismatch = api_request("/api/requests", "POST", headers=tokens["STAFF"], json=body | {"building_id": 2})
+    assert mismatch.status_code == 400
+    assert mismatch.json()["detail"] == "Equipment does not belong to the selected building"
+    general = api_request("/api/requests", "POST", headers=tokens["STAFF"], json=body | {"equipment_id": None})
+    assert general.status_code == 201 and general.json()["equipment"] is None

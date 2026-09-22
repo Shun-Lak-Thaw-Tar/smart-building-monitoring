@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from urllib.parse import urlencode
 
 from app.models import MaintenanceRequest, RequestStatusHistory
-from test_auth import auth_db, tokens
+from test_auth import ADMIN_ID, OTHER_STAFF_ID, STAFF_ID, auth_db, tokens
 
 pytestmark = pytest.mark.database
 
@@ -25,12 +25,12 @@ def create(api_request, tokens, payload):
 def test_staff_create_initial_history(auth_db, tokens, api_request, payload):
     result = create(api_request, tokens, payload)
     assert result["status"] == "PENDING" and result["assigned_to"] is None
-    assert result["submitted_by"]["user_id"] == -34501
+    assert result["submitted_by"]["user_id"] == STAFF_ID
     assert result["room_location"] == "Room 205"
     history = api_request(f"/api/requests/{result['request_id']}/history", headers=tokens["STAFF"]).json()
     assert len(history) == 1
     assert history[0]["previous_status"] is None and history[0]["new_status"] == "PENDING"
-    assert history[0]["changed_by"]["user_id"] == -34501 and history[0]["note"] is None
+    assert history[0]["changed_by"]["user_id"] == STAFF_ID and history[0]["note"] is None
     assert api_request("/api/requests", "POST", headers=tokens["ADMIN"], json=payload).status_code == 403
 
 
@@ -40,9 +40,9 @@ def test_staff_create_initial_history(auth_db, tokens, api_request, payload):
     ({"building_id": 3}, 400, "Equipment does not belong to the selected building"),
     ({"priority": "INVALID"}, 422, None),
     ({"room_location": "   "}, 422, None),
-    ({"submitted_by": -34503}, 422, None),
+    ({"submitted_by": OTHER_STAFF_ID}, 422, None),
     ({"status": "RESOLVED"}, 422, None),
-    ({"assigned_to": -34502}, 422, None),
+    ({"assigned_to": ADMIN_ID}, 422, None),
 ])
 def test_creation_validation(auth_db, tokens, api_request, payload, change, status, detail):
     response = api_request("/api/requests", "POST", headers=tokens["STAFF"], json=payload | change)
@@ -110,16 +110,16 @@ def test_admin_filter_validation(auth_db, tokens, api_request, query):
 def test_assignment_and_idempotency(auth_db, tokens, api_request, payload):
     record = create(api_request, tokens, payload)
     path = f"/api/requests/{record['request_id']}/assign"
-    assert api_request(path, "PATCH", headers=tokens["STAFF"], json={"assigned_to": -34502}).status_code == 403
-    for user_id, status, detail in ((-39999, 404, "Assignee not found"), (-34501, 400, "Assignee must be an administrator")):
+    assert api_request(path, "PATCH", headers=tokens["STAFF"], json={"assigned_to": ADMIN_ID}).status_code == 403
+    for user_id, status, detail in ((2_000_000_099, 404, "Assignee not found"), (STAFF_ID, 400, "Assignee must be an administrator")):
         response = api_request(path, "PATCH", headers=tokens["ADMIN"], json={"assigned_to": user_id})
         assert response.status_code == status and response.json() == {"detail": detail}
-    first = api_request(path, "PATCH", headers=tokens["ADMIN"], json={"assigned_to": -34502})
-    assert first.status_code == 200 and first.json()["assigned_to"]["user_id"] == -34502
-    again = api_request(path, "PATCH", headers=tokens["ADMIN"], json={"assigned_to": -34502})
+    first = api_request(path, "PATCH", headers=tokens["ADMIN"], json={"assigned_to": ADMIN_ID})
+    assert first.status_code == 200 and first.json()["assigned_to"]["user_id"] == ADMIN_ID
+    again = api_request(path, "PATCH", headers=tokens["ADMIN"], json={"assigned_to": ADMIN_ID})
     assert again.json() == first.json()
     assert len(api_request(f"/api/requests/{record['request_id']}/history", headers=tokens["ADMIN"]).json()) == 1
-    missing = api_request("/api/requests/999999/assign", "PATCH", headers=tokens["ADMIN"], json={"assigned_to": -34502})
+    missing = api_request("/api/requests/999999/assign", "PATCH", headers=tokens["ADMIN"], json={"assigned_to": ADMIN_ID})
     assert missing.status_code == 404 and missing.json() == {"detail": "Maintenance request not found"}
 
 
@@ -143,7 +143,7 @@ def test_status_transitions_history_and_noop(auth_db, tokens, api_request, paylo
     assert len(history) == 5
     assert [row["new_status"] for row in history] == ["PENDING"] + transitions
     assert [row["previous_status"] for row in history] == [None, "PENDING", "IN_PROGRESS", "RESOLVED", "IN_PROGRESS"]
-    assert all(row["note"] == "Inspected" and row["changed_by"]["user_id"] == -34502 for row in history[1:])
+    assert all(row["note"] == "Inspected" and row["changed_by"]["user_id"] == ADMIN_ID for row in history[1:])
     ordering = [(row["changed_at"], row["status_history_id"]) for row in history]
     assert ordering == sorted(ordering)
     assert api_request(path, "PATCH", headers=tokens["ADMIN"], json={"status": "INVALID"}).status_code == 422

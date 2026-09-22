@@ -9,6 +9,7 @@ from app.models import Building, EnvironmentalReading
 from app.schemas.environment import (
     BuildingEnvironmentHistoryResponse, BuildingEnvironmentResponse,
 )
+from app.schemas.ids import PathDatabaseId
 
 router = APIRouter(
     prefix="/api/environment", tags=["Environment"],
@@ -46,7 +47,7 @@ def get_environment(session: Annotated[Session, Depends(get_session)]):
     responses={404: {"description": "Building not found"}},
 )
 def get_environment_history(
-    building_id: int,
+    building_id: PathDatabaseId,
     session: Annotated[Session, Depends(get_session)],
     limit: Annotated[int, Query(ge=1, le=100, description="Maximum recent readings")] = 10,
 ):

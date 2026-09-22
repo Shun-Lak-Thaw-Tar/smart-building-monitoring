@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { requestService } from "../services/requestService";
 import { userService } from "../services/userService";
 import { errorMessage } from "../services/apiClient";
@@ -31,6 +32,7 @@ export default function RequestDetail() {
       ]),
     id,
   );
+  useRefreshOnFocus(resource.refresh);
   const [request, history, admins] = resource.data || [null, [], []];
   return (
     <>

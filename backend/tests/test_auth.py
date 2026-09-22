@@ -15,6 +15,12 @@ from app.models import MaintenanceHistory, MaintenanceRequest, RequestStatusHist
 
 pytestmark = pytest.mark.database
 
+# API IDs are positive PostgreSQL INTEGER values. High fixed values keep test
+# fixtures separate from seeded application rows without advancing sequences.
+STAFF_ID = 2_000_000_001
+ADMIN_ID = 2_000_000_002
+OTHER_STAFF_ID = 2_000_000_003
+
 
 class AuthContext(tuple):
     def __repr__(self):
@@ -39,9 +45,9 @@ def auth_db(monkeypatch):
         connection.execute(RequestStatusHistory.__table__.delete())
         connection.execute(MaintenanceRequest.__table__.delete())
         connection.execute(User.__table__.insert(), [
-            dict(user_id=-34501, name="__auth_staff__", role="STAFF", password_hash=hash_password(password)),
-            dict(user_id=-34502, name="__auth_admin__", role="ADMIN", password_hash=hash_password(password)),
-            dict(user_id=-34503, name="__auth_other_staff__", role="STAFF", password_hash=hash_password(password)),
+            dict(user_id=STAFF_ID, name="__auth_staff__", role="STAFF", password_hash=hash_password(password)),
+            dict(user_id=ADMIN_ID, name="__auth_admin__", role="ADMIN", password_hash=hash_password(password)),
+            dict(user_id=OTHER_STAFF_ID, name="__auth_other_staff__", role="STAFF", password_hash=hash_password(password)),
         ])
 
         def override():
@@ -104,7 +110,7 @@ def tokens(auth_db):
     connection, _ = auth_db
     with Session(bind=connection) as session:
         return TokenHeaders({role: {"Authorization": "Bearer " + create_access_token(session.get(User, user_id))}
-                for role, user_id in (("STAFF", -34501), ("ADMIN", -34502), ("OTHER", -34503))})
+                for role, user_id in (("STAFF", STAFF_ID), ("ADMIN", ADMIN_ID), ("OTHER", OTHER_STAFF_ID))})
 
 
 @pytest.mark.parametrize("role", ["STAFF", "ADMIN"])
@@ -144,5 +150,5 @@ def test_admin_lookup_and_database_role_authority(auth_db, tokens, api_request):
     assert [r["name"] for r in rows] == expected  # Respect PostgreSQL's configured collation.
     assert api_request("/api/users/admins", headers=tokens["STAFF"]).status_code == 403
     connection, _ = auth_db
-    connection.execute(User.__table__.update().where(User.user_id == -34502).values(role="STAFF"))
+    connection.execute(User.__table__.update().where(User.user_id == ADMIN_ID).values(role="STAFF"))
     assert api_request("/api/users/admins", headers=tokens["ADMIN"]).status_code == 403

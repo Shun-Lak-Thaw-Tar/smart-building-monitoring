@@ -7,6 +7,7 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { requestService } from "../services/requestService";
 import { monitoringService } from "../services/monitoringService";
 import { equipmentService } from "../services/equipmentService";
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
         userService.staff(),
       ]),
     );
+  useRefreshOnFocus(resource.refresh);
   const [requests, buildings, equipment, staff] = resource.data || [
       [],
       [],

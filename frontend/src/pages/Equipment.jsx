@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { CirclePlus, Pencil } from "lucide-react";
+import { CirclePlus, Pencil, MonitorCog } from "lucide-react";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useAction } from "../hooks/useAction";
 import { useToast } from "../context/ToastContext";
 import { equipmentService } from "../services/equipmentService";
@@ -28,6 +29,7 @@ export default function Equipment() {
       building,
     ),
     buildings = useResource(buildingService.list);
+  useRefreshOnFocus(resource.refresh);
   const items = (resource.data || []).filter(
     (e) =>
       (!status || e.status === status) &&
@@ -128,7 +130,10 @@ export default function Equipment() {
                     {items.map((e) => (
                       <tr key={e.equipment_id}>
                         <td>
-                          <strong>{e.equipment_name}</strong>
+                          <strong className="equipment-title">
+                            <MonitorCog size={19} aria-hidden="true" />
+                            {e.equipment_name}
+                          </strong>
                         </td>
                         <td>{e.building.building_name}</td>
                         <td>{e.equipment_type}</td>
@@ -158,7 +163,10 @@ export default function Equipment() {
                       <strong>{e.building.building_name}</strong>
                       <Badge value={e.status} />
                     </div>
-                    <h3>{e.equipment_name}</h3>
+                    <h3 className="equipment-title">
+                      <MonitorCog size={19} aria-hidden="true" />
+                      {e.equipment_name}
+                    </h3>
                     <p>
                       {e.equipment_type} · {e.location}
                     </p>
@@ -185,7 +193,7 @@ export default function Equipment() {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
-            resource.refresh();
+            resource.refresh({ background: true });
           }}
         />
       )}

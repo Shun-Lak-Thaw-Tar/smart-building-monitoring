@@ -8,6 +8,7 @@ from app.core.dependencies import require_admin
 from app.db.session import get_session
 from app.models import Equipment, MaintenanceHistory, MaintenanceRequest, User
 from app.schemas.maintenance_history import MaintenanceHistoryCreate, MaintenanceHistoryResponse
+from app.schemas.ids import OptionalQueryDatabaseId
 from app.services.maintenance_history import history_query, ordered_history_query
 from app.services.requests import write_transaction
 
@@ -17,7 +18,8 @@ router = APIRouter(prefix="/api/maintenance-history", tags=["Maintenance history
 
 
 @router.get("", response_model=list[MaintenanceHistoryResponse], summary="List completed maintenance (ADMIN)")
-def list_history(session: Annotated[Session, Depends(get_session)], building_id: int | None = None, equipment_id: int | None = None):
+def list_history(session: Annotated[Session, Depends(get_session)], building_id: OptionalQueryDatabaseId = None,
+                 equipment_id: OptionalQueryDatabaseId = None):
     statement = ordered_history_query()
     if building_id is not None:
         statement = statement.join(MaintenanceHistory.equipment).where(Equipment.building_id == building_id)

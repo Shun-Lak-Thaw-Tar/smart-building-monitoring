@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
 from app.db.session import get_session
 from app.schemas.monitoring import BuildingMonitoringResponse
+from app.schemas.ids import PathDatabaseId
 from app.services.monitoring import building_summaries
 
 router = APIRouter(prefix="/api/monitoring/buildings", tags=["Building monitoring"], dependencies=[Depends(get_current_user)],
@@ -20,7 +21,7 @@ def list_building_monitoring(session: Annotated[Session, Depends(get_session)]):
 
 @router.get("/{building_id}", response_model=BuildingMonitoringResponse, summary="Monitor one building (STAFF or ADMIN)",
             responses={404: {"description": "Building not found"}})
-def get_building_monitoring(building_id: int, session: Annotated[Session, Depends(get_session)]):
+def get_building_monitoring(building_id: PathDatabaseId, session: Annotated[Session, Depends(get_session)]):
     results = building_summaries(session, building_id)
     if not results:
         raise HTTPException(404, "Building not found")

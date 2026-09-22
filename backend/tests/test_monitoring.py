@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import event, func, select
 
 from app.models import Building, EnvironmentalReading, Equipment, MaintenanceRequest
-from test_auth import auth_db, tokens
+from test_auth import STAFF_ID, auth_db, tokens
 
 pytestmark = pytest.mark.database
 
@@ -44,13 +44,13 @@ def test_monitoring_baseline(auth_db, tokens, api_request, role):
 ])
 def test_derived_status_rules(auth_db, tokens, api_request, equipment_status, priority, request_status, expected):
     connection, _ = auth_db
-    connection.execute(Building.__table__.insert().values(building_id=-36780, building_name="__monitoring_test__"))
-    connection.execute(Equipment.__table__.insert().values(equipment_id=-36780, building_id=-36780,
+    connection.execute(Building.__table__.insert().values(building_id=2_000_000_080, building_name="__monitoring_test__"))
+    connection.execute(Equipment.__table__.insert().values(equipment_id=2_000_000_080, building_id=2_000_000_080,
         equipment_name="Test", equipment_type="Test", location="Test", status=equipment_status))
     if priority:
-        connection.execute(MaintenanceRequest.__table__.insert().values(request_id=-36780, building_id=-36780,
-            submitted_by=-34501, room_location="Test", fault_category="Test", description="Test", priority=priority, status=request_status))
-    response = api_request("/api/monitoring/buildings/-36780", headers=tokens["STAFF"])
+        connection.execute(MaintenanceRequest.__table__.insert().values(request_id=2_000_000_080, building_id=2_000_000_080,
+            submitted_by=STAFF_ID, room_location="Test", fault_category="Test", description="Test", priority=priority, status=request_status))
+    response = api_request("/api/monitoring/buildings/2000000080", headers=tokens["STAFF"])
     assert response.status_code == 200
     row = response.json()
     assert row["overall_status"] == expected and row["latest_environment"] is None
@@ -61,9 +61,9 @@ def test_derived_status_rules(auth_db, tokens, api_request, equipment_status, pr
         assert summary[state] == int(request_status == state.upper())
     # Display-only environmental data cannot change the computed status.
     for reading_id, year in ((-36780, 2020), (-36781, 2030), (-36782, 2030)):
-        connection.execute(EnvironmentalReading.__table__.insert().values(reading_id=reading_id, building_id=-36780,
+        connection.execute(EnvironmentalReading.__table__.insert().values(reading_id=reading_id, building_id=2_000_000_080,
             temperature=99, humidity=100, energy_consumption=999, recorded_at=datetime(year, 1, 1, tzinfo=timezone.utc)))
-    row = api_request("/api/monitoring/buildings/-36780", headers=tokens["STAFF"]).json()
+    row = api_request("/api/monitoring/buildings/2000000080", headers=tokens["STAFF"]).json()
     assert row["overall_status"] == expected and row["latest_environment"]["reading_id"] == -36781
 
 

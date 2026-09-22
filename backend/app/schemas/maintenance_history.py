@@ -3,6 +3,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 from app.schemas.auth import UserBrief
 from app.schemas.building import BuildingBrief
 from app.schemas.maintenance_request import RequestStatus
+from app.schemas.ids import DatabaseId
 
 
 class EquipmentMaintenanceBrief(BaseModel):
@@ -30,6 +31,6 @@ class MaintenanceHistoryResponse(BaseModel):
 
 class MaintenanceHistoryCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-    equipment_id: int
-    request_id: int | None = None
+    equipment_id: DatabaseId
+    request_id: DatabaseId | None = None
     action_details: str = Field(min_length=1, max_length=2000)

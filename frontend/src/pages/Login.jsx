@@ -7,19 +7,44 @@ import {
   EyeOff,
   LockKeyhole,
   University,
+  Activity,
+  Wrench,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { errorMessage } from "../services/apiClient";
 import { homeFor } from "../utils/format";
 import { ErrorAlert, Field, LoadingState } from "../components/UI";
 export default function Login() {
-  const { user, loading, notice, login } = useAuth(),
+  const { user, loading, temporarilyUnavailable, notice, login, logout, retry } = useAuth(),
     [show, setShow] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     lock = useRef(false);
   if (loading) return <LoadingState />;
   if (user) return <Navigate to={homeFor(user)} replace />;
+  if (temporarilyUnavailable)
+    return (
+      <div className="login-page">
+        <main className="login-form-side session-unavailable">
+          <div className="login-card">
+            <p className="eyebrow">SESSION CHECK UNAVAILABLE</p>
+            <h2>Unable to verify your session right now.</h2>
+            <p className="muted">
+              Your saved session is still protected. Try again when the service is available.
+            </p>
+            <div className="form-actions">
+              <button className="button" onClick={retry}>
+                Retry session check
+              </button>
+              <button className="button secondary" onClick={logout}>
+                Sign out
+              </button>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   async function submit(e) {
     e.preventDefault();
     if (lock.current) return;
@@ -59,11 +84,11 @@ export default function Login() {
         <div className="login-story-body">
           <span className="portal-label">SMART CAMPUS FACILITIES PORTAL</span>
           <h1>
-            A better campus
+            Smart Building
             <br />
-            starts with
+            <em>Monitoring.</em>
             <br />
-            <em>better care.</em>
+            <span className="login-title-note">A more connected campus.</span>
           </h1>
           <p>
             Monitor campus buildings, manage maintenance requests and keep
@@ -78,6 +103,20 @@ export default function Login() {
             <span>Building 216</span>
             <span>Building 209</span>
             <span>JS Building</span>
+          </div>
+          <div className="login-features">
+            <span>
+              <Activity size={17} aria-hidden="true" />
+              Campus Monitoring
+            </span>
+            <span>
+              <Wrench size={17} aria-hidden="true" />
+              Maintenance Management
+            </span>
+            <span>
+              <ShieldCheck size={17} aria-hidden="true" />
+              Secure Role-Based Access
+            </span>
           </div>
         </div>
         <small>CET333 · Product Development</small>

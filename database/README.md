@@ -122,18 +122,29 @@ rows and 15 reading JOIN rows. After the separate application demo seed, there a
 3 users, 4 requests, 7 request-status-history events and 3 maintenance-history records.
 The queries also show real constraint definitions and indexes.
 
-From `backend/`, run tests after migration and seed:
+Database tests require a separate PostgreSQL database. With a PostgreSQL
+administrator, create it once; this must not be run against `smart_building`:
+
+```sql
+CREATE DATABASE smart_building_test OWNER smart_building_app;
+```
+
+Set `TEST_DATABASE_URL` in ignored `backend/.env` to that database, using the
+same URL-encoded application credentials as `DATABASE_URL`. The test runner
+refuses a URL whose database name does not end in `_test`, runs Alembic upgrades,
+clears only the test database, and seeds its controlled baseline.
+
+From `backend/`, run the full suite:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Database tests target PostgreSQL, never SQLite. They expect this baseline state;
-after later feature data is added, run them against a separately configured seeded
-development/test database. Writes use rollback transactions and synthetic negative
-IDs. No usable hashes or persistent user/workflow data are created. With no
-DATABASE_URL, database tests explicitly skip; health tests still run. A configured
-but inaccessible database fails the integration checks.
+Database tests target PostgreSQL, never SQLite. They run only against
+`TEST_DATABASE_URL`, not the development database. Writes use rollback
+transactions and synthetic fixtures. No usable hashes or persistent user/workflow
+data are created. A missing or inaccessible test database fails database checks;
+health-only checks can run without it.
 
 WBS 3.3–3.5 now use this unchanged schema for protected resource reads, login/RBAC
 and maintenance requests. The separate `python -m app.db.seed_demo` command adds

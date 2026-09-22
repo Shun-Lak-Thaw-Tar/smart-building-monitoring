@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { trackBrowserFailures } from "./browser-verification.mjs";
 process.chdir(fileURLToPath(new URL("../", import.meta.url)));
 const require = createRequire(import.meta.url);
 const { chromium } = require(
@@ -26,8 +27,7 @@ const credentials = JSON.parse(
 );
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
-const errors = [];
-page.on("pageerror", (e) => errors.push(e.message));
+const verification = trackBrowserFailures(page, "UI verification");
 const base = process.env.BROWSER_TEST_URL || "http://localhost:5173",
   marker = "UI verification " + Date.now(),
   staffName = marker + " Staff",
@@ -79,15 +79,32 @@ async function saveResponse(path, click) {
 }
 try {
   await page.goto(base + "/login");
+  assert.equal(
+    await page.getByRole("button", { name: "Show password" }).count(),
+    1,
+  );
   await page.getByLabel(/^Name/).fill("Demo Staff");
   await page.getByLabel(/^Password/).fill(credentials.staff);
   await page.getByLabel("Sign in as").selectOption("ADMIN");
+  verification.expectResponse("POST", "/api/auth/login", 401);
+  verification.expectConsole(
+    /Failed to load resource: the server responded with a status of 401/,
+    "/api/auth/login",
+  );
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page
     .getByRole("alert")
     .filter({ hasText: "Invalid login credentials or role" })
     .waitFor();
+  verification.assertClean("wrong-role login");
   await login("STAFF");
+  await page.locator(".skip-link").focus();
+  await page.keyboard.press("Enter");
+  assert.equal(
+    await page.evaluate(() => document.activeElement?.id),
+    "main-content",
+    "Skip link moves keyboard focus to main content",
+  );
   await page.reload();
   await ready();
   await page.goto(base + "/admin/requests");
@@ -123,7 +140,7 @@ try {
       .count(),
     0,
   );
-  for (const width of [1440, 1024, 768, 375]) {
+  for (const width of [1440, 1280, 1024, 768, 375]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const path of [
       "/staff/dashboard",
@@ -172,10 +189,23 @@ try {
     .waitFor();
   console.log("Admin search, assignment and timeline update passed.");
   await go("/admin/equipment");
-  await page
-    .getByRole("button", { name: "Add Equipment", exact: true })
-    .click();
+  const addEquipment = page.getByRole("button", {
+    name: "Add Equipment",
+    exact: true,
+  });
+  await addEquipment.click();
   let modal = page.getByRole("dialog");
+  assert.equal(
+    await modal.evaluate((element) => element.contains(document.activeElement)),
+    true,
+    "Opening a dialog moves focus inside it",
+  );
+  await page.keyboard.press("Escape");
+  await modal.waitFor({ state: "hidden" });
+  await page.waitForTimeout(200);
+  assert.equal(await addEquipment.evaluate((element) => element === document.activeElement), true);
+  await addEquipment.click();
+  modal = page.getByRole("dialog");
   await modal.getByLabel(/^Building/).selectOption({ label: "Building 216" });
   await modal.getByLabel(/^Equipment Name/).fill(marker);
   await modal.getByLabel(/^Equipment Type/).fill("Verification device");
@@ -303,7 +333,7 @@ try {
   await logout();
   await login("ADMIN");
   mkdirSync("../.tmp/frontend-qa", { recursive: true });
-  for (const width of [1440, 1024, 768, 375]) {
+  for (const width of [1440, 1280, 1024, 768, 375]) {
     await page.setViewportSize({ width, height: 1000 });
     for (const path of [
       "/admin/dashboard",
@@ -331,6 +361,7 @@ try {
     }
     await page.getByRole("button").filter({ hasText: "Building 216" }).click();
     await page.getByRole("dialog").waitFor();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflow), "hidden");
     await page.getByText("Temperature & humidity", { exact: true }).waitFor();
     assert.ok(
       await page
@@ -388,6 +419,11 @@ try {
       body: '{"detail":"Database service unavailable"}',
     }),
   );
+  verification.expectResponse("GET", "/api/requests/my", 503);
+  verification.expectConsole(
+    /Failed to load resource: the server responded with a status of 503/,
+    "/api/requests/my",
+  );
   await go("/staff/requests");
   await page
     .getByRole("alert")
@@ -396,28 +432,48 @@ try {
     })
     .waitFor();
   await page.unroute("**/api/requests/my");
+  verification.assertClean("simulated unavailable service");
   await page.getByRole("button", { name: "Try again" }).click();
   await page
     .getByText("Loading…", { exact: true })
     .waitFor({ state: "hidden" });
   await page.route("**/api/requests/my", (route) => route.abort());
+  verification.expectRequestFailure("GET", "/api/requests/my");
+  verification.expectConsole(/Failed to load resource: net::ERR_FAILED/, "/api/requests/my");
   await go("/staff/requests");
   await page
     .getByRole("alert")
     .filter({ hasText: "Unable to connect to the server." })
     .waitFor();
   await page.unroute("**/api/requests/my");
+  verification.assertClean("simulated connection failure");
+  verification.expectResponse("GET", "/api/requests/999999999", 404);
+  verification.expectResponse("GET", "/api/requests/999999999/history", 404);
+  verification.expectConsole(
+    /Failed to load resource: the server responded with a status of 404/,
+    "/api/requests/999999999",
+  );
+  verification.expectConsole(
+    /Failed to load resource: the server responded with a status of 404/,
+    "/api/requests/999999999/history",
+  );
   await go("/staff/requests/999999999");
   await page
     .getByRole("alert")
     .filter({ hasText: "Maintenance request not found" })
     .waitFor();
+  verification.assertClean("missing request");
   await page.route("**/api/requests/my", (route) =>
     route.fulfill({
       status: 401,
       contentType: "application/json",
       body: '{"detail":"Invalid or expired token"}',
     }),
+  );
+  verification.expectResponse("GET", "/api/requests/my", 401);
+  verification.expectConsole(
+    /Failed to load resource: the server responded with a status of 401/,
+    "/api/requests/my",
   );
   await page.goto(base + "/staff/requests");
   await page.waitForURL("**/login");
@@ -430,14 +486,99 @@ try {
     null,
   );
   await page.unroute("**/api/requests/my");
+  verification.assertClean("session expiry");
+  await login("STAFF");
+  const restoredToken = await page.evaluate(() =>
+    sessionStorage.getItem("smart-building-token"),
+  );
+  assert.ok(restoredToken, "Login stores a session token");
+  await page.reload();
+  await page.waitForURL("**/staff/dashboard");
+  assert.equal(
+    await page.evaluate(() => sessionStorage.getItem("smart-building-token")),
+    restoredToken,
+    "A valid session is restored after reload",
+  );
+  await page.route("**/api/auth/me", (route) =>
+    route.request().method() === "GET"
+      ? route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: '{"detail":"Database service unavailable"}',
+        })
+      : route.continue(),
+  );
+  verification.expectResponse("GET", "/api/auth/me", 503);
+  verification.expectConsole(
+    /Failed to load resource: the server responded with a status of 503/,
+    "/api/auth/me",
+  );
+  await page.reload();
+  await page
+    .getByRole("heading", { name: "Unable to verify your session right now." })
+    .waitFor();
+  assert.equal(
+    await page.evaluate(() => sessionStorage.getItem("smart-building-token")),
+    restoredToken,
+    "A temporary server failure preserves the stored token",
+  );
+  await page.unroute("**/api/auth/me");
+  verification.assertClean("temporary restoration failure");
+  await page.getByRole("button", { name: "Retry session check" }).click();
+  await page.waitForURL("**/staff/dashboard");
+  await page.route("**/api/auth/me", (route) =>
+    route.request().method() === "GET" ? route.abort() : route.continue(),
+  );
+  verification.expectRequestFailure("GET", "/api/auth/me");
+  verification.expectConsole(/Failed to load resource: net::ERR_FAILED/, "/api/auth/me");
+  await page.reload();
+  await page
+    .getByRole("heading", { name: "Unable to verify your session right now." })
+    .waitFor();
+  assert.equal(
+    await page.evaluate(() => sessionStorage.getItem("smart-building-token")),
+    restoredToken,
+    "A network failure preserves the stored token",
+  );
+  await page.unroute("**/api/auth/me");
+  verification.assertClean("network restoration failure");
+  await page.getByRole("button", { name: "Retry session check" }).click();
+  await page.waitForURL("**/staff/dashboard");
+  await page.route("**/api/auth/me", (route) =>
+    route.request().method() === "GET"
+      ? route.fulfill({
+          status: 401,
+          contentType: "application/json",
+          body: '{"detail":"Invalid or expired token"}',
+        })
+      : route.continue(),
+  );
+  verification.expectResponse("GET", "/api/auth/me", 401);
+  verification.expectConsole(
+    /Failed to load resource: the server responded with a status of 401/,
+    "/api/auth/me",
+  );
+  await page.reload();
+  await page.waitForURL("**/login");
+  await page
+    .getByRole("alert")
+    .filter({ hasText: "Your session has expired." })
+    .waitFor();
+  assert.equal(
+    await page.evaluate(() => sessionStorage.getItem("smart-building-token")),
+    null,
+    "A rejected restoration removes the invalid token",
+  );
+  await page.unroute("**/api/auth/me");
+  verification.assertClean("invalid-token restoration");
   await page.goto(base + "/not-a-page");
   await page.getByRole("heading", { name: "Page not found" }).waitFor();
-  assert.deepEqual(errors, []);
+  verification.assertClean("successful and expected-error workflows");
   console.log(
     "Readable service/network/404 errors, retry and global session expiry passed.",
   );
   console.log(
-    "All Admin pages and monitoring/Staff dialogs passed at 1440, 1024, 768 and 375px; reduced motion passed; no runtime errors.",
+    "All Admin pages and monitoring/Staff dialogs passed at 1440, 1280, 1024, 768 and 375px; reduced motion passed; no runtime errors.",
   );
 } finally {
   await browser.close();

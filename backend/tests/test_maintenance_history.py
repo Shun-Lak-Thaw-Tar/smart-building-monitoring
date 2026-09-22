@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import event, func, select
 
 from app.models import Equipment, MaintenanceHistory, MaintenanceRequest, RequestStatusHistory
-from test_auth import auth_db, tokens
+from test_auth import ADMIN_ID, STAFF_ID, auth_db, tokens
 
 pytestmark = pytest.mark.database
 
@@ -12,8 +12,8 @@ pytestmark = pytest.mark.database
 def test_history_reads_filters_order_and_query_count(auth_db, tokens, api_request):
     connection, _ = auth_db
     connection.execute(MaintenanceHistory.__table__.insert(), [
-        dict(history_id=-36701, equipment_id=1, completed_by=-34502, action_details="First", completed_at=datetime(2020, 1, 1, tzinfo=timezone.utc)),
-        dict(history_id=-36702, equipment_id=7, completed_by=-34502, action_details="Second", completed_at=datetime(2021, 1, 1, tzinfo=timezone.utc)),
+        dict(history_id=-36701, equipment_id=1, completed_by=ADMIN_ID, action_details="First", completed_at=datetime(2020, 1, 1, tzinfo=timezone.utc)),
+        dict(history_id=-36702, equipment_id=7, completed_by=ADMIN_ID, action_details="Second", completed_at=datetime(2021, 1, 1, tzinfo=timezone.utc)),
     ])
     response = api_request("/api/maintenance-history", headers=tokens["ADMIN"])
     assert response.status_code == 200
@@ -54,7 +54,7 @@ def test_preventive_creation_and_state_independence(auth_db, tokens, api_request
     assert response.status_code == 201
     row = response.json()
     assert row["request"] is None and row["action_details"] == "Filter cleaned"
-    assert row["completed_by"]["user_id"] == -34502
+    assert row["completed_by"]["user_id"] == ADMIN_ID
     assert datetime.fromisoformat(row["completed_at"]).tzinfo is not None
     assert "password" not in response.text
     assert connection.scalar(select(Equipment.status).where(Equipment.equipment_id == 1)) == original
@@ -74,18 +74,18 @@ def test_preventive_creation_and_state_independence(auth_db, tokens, api_request
 def test_linked_request_validation(auth_db, tokens, api_request, request_equipment, status, expected, detail):
     connection, _ = auth_db
     connection.execute(MaintenanceRequest.__table__.insert().values(
-        request_id=-36740, submitted_by=-34501, building_id=1, equipment_id=request_equipment,
+        request_id=2_000_000_040, submitted_by=STAFF_ID, building_id=1, equipment_id=request_equipment,
         room_location="Test", fault_category="Other", description="Test", priority="LOW", status=status))
-    body = {"equipment_id": 1, "request_id": -36740, "action_details": "Completed service"}
+    body = {"equipment_id": 1, "request_id": 2_000_000_040, "action_details": "Completed service"}
     response = api_request("/api/maintenance-history", "POST", headers=tokens["ADMIN"], json=body)
     assert response.status_code == expected
     if detail:
         assert response.json() == {"detail": detail}
     else:
-        assert response.json()["request"] == {"request_id": -36740, "status": "RESOLVED"}
+        assert response.json()["request"] == {"request_id": 2_000_000_040, "status": "RESOLVED"}
         assert api_request("/api/maintenance-history", "POST", headers=tokens["ADMIN"], json=body).status_code == 201
         assert connection.scalar(select(func.count()).select_from(MaintenanceHistory)) == 2
-    assert connection.scalar(select(MaintenanceRequest.status).where(MaintenanceRequest.request_id == -36740)) == status
+    assert connection.scalar(select(MaintenanceRequest.status).where(MaintenanceRequest.request_id == 2_000_000_040)) == status
     assert connection.scalar(select(func.count()).select_from(RequestStatusHistory)) == 0
 
 

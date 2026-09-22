@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { requestService } from "../services/requestService";
 import { monitoringService } from "../services/monitoringService";
 import { PageHeader, ResourceState, StatCard } from "../components/UI";
@@ -20,6 +21,7 @@ export default function StaffDashboard() {
     resource = useResource(() =>
       Promise.all([requestService.mine(), monitoringService.list()]),
     );
+  useRefreshOnFocus(resource.refresh);
   const [requests, buildings] = resource.data || [[], []];
   return (
     <>

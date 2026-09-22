@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Activity, RefreshCw } from "lucide-react";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { monitoringService } from "../services/monitoringService";
 import { PageHeader, ResourceState, Modal, Badge } from "../components/UI";
 import BuildingCards from "../components/BuildingCards";
@@ -8,7 +9,11 @@ import { EnvironmentCharts } from "../components/Charts";
 import { dateTime } from "../utils/format";
 export default function Monitoring() {
   const resource = useResource(monitoringService.list),
-    [selected, setSelected] = useState(null);
+    [selectedId, setSelectedId] = useState(null),
+    selected = resource.data?.find(
+      (item) => item.building.building_id === selectedId,
+    );
+  useRefreshOnFocus(resource.refresh);
   return (
     <>
       <PageHeader
@@ -18,7 +23,7 @@ export default function Monitoring() {
         <button
           className="button secondary"
           disabled={resource.loading}
-          onClick={resource.refresh}
+          onClick={() => resource.refresh({ background: true })}
         >
           <RefreshCw size={16} />
           Refresh
@@ -29,10 +34,13 @@ export default function Monitoring() {
         Simulated Environmental Data<span>Read-only campus overview</span>
       </div>
       <ResourceState resource={resource}>
-        <BuildingCards buildings={resource.data || []} onSelect={setSelected} />
+        <BuildingCards
+          buildings={resource.data || []}
+          onSelect={(building) => setSelectedId(building.building.building_id)}
+        />
       </ResourceState>
       {selected && (
-        <BuildingDetail building={selected} onClose={() => setSelected(null)} />
+        <BuildingDetail building={selected} onClose={() => setSelectedId(null)} />
       )}
     </>
   );
@@ -44,6 +52,7 @@ function BuildingDetail({ building, onClose }) {
     e = building.equipment_summary,
     r = building.request_summary,
     latest = resource.data?.readings[0];
+  useRefreshOnFocus(resource.refresh);
   return (
     <Modal title={building.building.building_name} onClose={onClose}>
       <p className="simulation-label">Simulated Environmental Data</p>

@@ -151,11 +151,11 @@ def test_default_history_limit(api_db, api_request):
 
 
 def test_building_without_readings(api_db, api_request):
-    api_db.execute(Building.__table__.insert().values(building_id=-33330, building_name="__api_empty_building__"))
-    response = api_request("/api/environment/-33330")
+    api_db.execute(Building.__table__.insert().values(building_id=2_000_000_030, building_name="__api_empty_building__"))
+    response = api_request("/api/environment/2000000030")
     assert response.status_code == 200
-    assert response.json() == {"building": {"building_id": -33330, "building_name": "__api_empty_building__"}, "readings": []}
-    assert all(row["building"]["building_id"] != -33330 for row in api_request("/api/environment").json())
+    assert response.json() == {"building": {"building_id": 2_000_000_030, "building_name": "__api_empty_building__"}, "readings": []}
+    assert all(row["building"]["building_id"] != 2_000_000_030 for row in api_request("/api/environment").json())
 
 
 def test_empty_collections(api_db, api_request):

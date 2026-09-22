@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { CirclePlus, Users } from "lucide-react";
+import { CirclePlus, Users, ShieldCheck } from "lucide-react";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useAction } from "../hooks/useAction";
 import { useToast } from "../context/ToastContext";
 import { userService } from "../services/userService";
@@ -17,6 +18,7 @@ import {
 export default function StaffAccounts() {
   const resource = useResource(userService.staff),
     [open, setOpen] = useState(false);
+  useRefreshOnFocus(resource.refresh);
   return (
     <>
       <PageHeader
@@ -45,7 +47,10 @@ export default function StaffAccounts() {
                     <strong>{u.name}</strong>
                     <small>Campus facilities access</small>
                   </div>
-                  <Badge value={u.role} />
+                  <span className="staff-access">
+                    <ShieldCheck size={18} aria-hidden="true" />
+                    <Badge value={u.role} />
+                  </span>
                 </div>
               ))}
             </div>
@@ -63,7 +68,7 @@ export default function StaffAccounts() {
           onClose={() => setOpen(false)}
           onSaved={() => {
             setOpen(false);
-            resource.refresh();
+            resource.refresh({ background: true });
           }}
         />
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
 import { AlertCircle, Inbox, LoaderCircle, X, Circle } from "lucide-react";
 import { labels } from "../utils/format";
 export function Badge({ value }) {
@@ -87,14 +87,21 @@ export function SubmitButton({ busy, disabled, children, ...props }) {
 }
 export function Field({ label, required, children, hint }) {
   const id = useId();
+  const hintId = hint ? `${id}-hint` : undefined;
+  const control = children(id);
+  const describedBy = isValidElement(control)
+    ? [control.props["aria-describedby"], hintId].filter(Boolean).join(" ")
+    : undefined;
   return (
     <div className="field">
       <label htmlFor={id}>
         {label}
         {required && <span aria-hidden="true"> *</span>}
       </label>
-      {children(id)}
-      {hint && <small>{hint}</small>}
+      {isValidElement(control)
+        ? cloneElement(control, { "aria-describedby": describedBy || undefined })
+        : control}
+      {hint && <small id={hintId}>{hint}</small>}
     </div>
   );
 }
@@ -122,7 +129,8 @@ export function Modal({ title, children, onClose, busy = false }) {
     titleId = useId(),
     timer = useRef(null),
     closeRef = useRef(onClose),
-    busyRef = useRef(busy);
+    busyRef = useRef(busy),
+    openerRef = useRef(null);
   closeRef.current = onClose;
   busyRef.current = busy;
   const [closing, setClosing] = useState(false);
@@ -133,11 +141,15 @@ export function Modal({ title, children, onClose, busy = false }) {
     }
   }
   useEffect(() => {
-    const previous = document.activeElement;
+    openerRef.current ||= document.activeElement;
     ref.current.showModal();
+    const firstControl = ref.current.querySelector(
+      "input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+    ) || ref.current.querySelector("button:not([disabled])");
+    firstControl?.focus();
     return () => {
       clearTimeout(timer.current);
-      previous?.focus();
+      setTimeout(() => openerRef.current?.focus(), 0);
     };
   }, []);
   return (

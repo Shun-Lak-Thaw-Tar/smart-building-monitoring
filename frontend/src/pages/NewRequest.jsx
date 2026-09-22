@@ -1,7 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Info } from "lucide-react";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useToast } from "../context/ToastContext";
 import { buildingService } from "../services/buildingService";
 import { equipmentService } from "../services/equipmentService";
@@ -32,6 +33,17 @@ export default function NewRequest() {
           : Promise.resolve([]),
       building,
     );
+  useRefreshOnFocus(() =>
+    building ? items.refresh({ background: true }) : Promise.resolve(true),
+  );
+  useEffect(() => {
+    if (
+      equipment &&
+      !items.loading &&
+      !items.data?.some((item) => item.equipment_id === Number(equipment))
+    )
+      setEquipment("");
+  }, [equipment, items.data, items.loading]);
   async function submit(e) {
     e.preventDefault();
     if (lock.current) return;

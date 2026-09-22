@@ -11,6 +11,7 @@ from app.schemas.maintenance_request import (
     MaintenanceRequestAssign, MaintenanceRequestCreate, MaintenanceRequestResponse, MaintenanceRequestStatusUpdate,
     RequestPriority, RequestStatus, RequestStatusHistoryResponse,
 )
+from app.schemas.ids import OptionalQueryDatabaseId, PathDatabaseId
 from app.services.requests import request_query, visible_request, write_transaction
 
 router = APIRouter(prefix="/api/requests", tags=["Maintenance requests"], responses={
@@ -58,7 +59,7 @@ def my_requests(session: DB, user: Staff):
 @router.get("", response_model=list[MaintenanceRequestResponse], summary="List and filter maintenance requests")
 def list_requests(
     session: DB, user: Admin,
-    building_id: int | None = None,
+    building_id: OptionalQueryDatabaseId = None,
     status: RequestStatus | None = None,
     priority: RequestPriority | None = None,
     search: Annotated[str | None, Query(max_length=100)] = None,
@@ -85,12 +86,12 @@ def list_requests(
 
 
 @router.get("/{request_id}", response_model=MaintenanceRequestResponse, summary="Get a maintenance request")
-def get_request(request_id: int, session: DB, user: CurrentUser):
+def get_request(request_id: PathDatabaseId, session: DB, user: CurrentUser):
     return visible_request(session, user, request_id)
 
 
 @router.get("/{request_id}/history", response_model=list[RequestStatusHistoryResponse], summary="Get request status timeline")
-def get_history(request_id: int, session: DB, user: CurrentUser):
+def get_history(request_id: PathDatabaseId, session: DB, user: CurrentUser):
     visible_request(session, user, request_id)
     return session.scalars(select(RequestStatusHistory).options(joinedload(RequestStatusHistory.changed_by_user))
                            .where(RequestStatusHistory.request_id == request_id)
@@ -99,7 +100,7 @@ def get_history(request_id: int, session: DB, user: CurrentUser):
 
 @router.patch("/{request_id}/assign", response_model=MaintenanceRequestResponse, summary="Assign request to an administrator",
               responses={400: {"description": "Assignee must be an administrator"}})
-def assign_request(request_id: int, data: MaintenanceRequestAssign, session: DB, user: Admin):
+def assign_request(request_id: PathDatabaseId, data: MaintenanceRequestAssign, session: DB, user: Admin):
     with write_transaction(session):
         record = visible_request(session, user, request_id, lock=True)
         assignee = session.get(User, data.assigned_to)
@@ -115,7 +116,7 @@ def assign_request(request_id: int, data: MaintenanceRequestAssign, session: DB,
 
 
 @router.patch("/{request_id}/status", response_model=MaintenanceRequestResponse, summary="Update request status and timeline")
-def update_status(request_id: int, data: MaintenanceRequestStatusUpdate, session: DB, user: Admin):
+def update_status(request_id: PathDatabaseId, data: MaintenanceRequestStatusUpdate, session: DB, user: Admin):
     with write_transaction(session):
         record = visible_request(session, user, request_id, lock=True)
         if record.status != data.status:

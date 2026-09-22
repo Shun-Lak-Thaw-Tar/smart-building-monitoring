@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { CirclePlus, Search } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { requestService } from "../services/requestService";
 import { buildingService } from "../services/buildingService";
 import { PageHeader, ResourceState, Field, Options } from "../components/UI";
@@ -23,6 +24,7 @@ export default function Requests() {
   const buildings = useResource(() =>
     admin ? buildingService.list() : Promise.resolve([]),
   );
+  useRefreshOnFocus(resource.refresh);
   function filter(e) {
     e.preventDefault();
     const values = Object.fromEntries(new FormData(e.currentTarget));

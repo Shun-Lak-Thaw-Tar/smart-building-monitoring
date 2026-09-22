@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     app_port: int = 8000
     cors_origins: list[str] = ["http://localhost:5173"]
     database_url: str | None = None
+    test_database_url: str | None = Field(default=None, repr=False)
     jwt_secret: str | None = Field(default=None, repr=False)
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 30

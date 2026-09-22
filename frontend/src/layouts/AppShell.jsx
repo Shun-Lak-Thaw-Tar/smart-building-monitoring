@@ -58,7 +58,8 @@ export default function AppShell() {
         </div>
         <div>
           <strong>Smart Building</strong>
-          <small>FACILITIES PORTAL</small>
+          <span className="brand-system">Monitoring System</span>
+          <small>SMART CAMPUS FACILITIES</small>
         </div>
       </div>
       <p className="nav-label">
@@ -135,7 +136,7 @@ export default function AppShell() {
             <span className="avatar">{user.name.slice(0, 1)}</span>
           </div>
         </header>
-        <main id="main-content" className="page" key={location.pathname}>
+        <main id="main-content" className="page" tabIndex={-1} key={location.pathname}>
           <Outlet />
         </main>
         <footer className="workspace-footer">

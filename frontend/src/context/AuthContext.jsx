@@ -1,62 +1,95 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { authService } from "../services/authService";
-import { TOKEN_KEY, errorMessage } from "../services/apiClient";
+import { TOKEN_KEY } from "../services/apiClient";
 const Context = createContext(null);
 export const useAuth = () => useContext(Context);
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY)),
     [user, setUser] = useState(null),
     [loading, setLoading] = useState(Boolean(token)),
+    [temporarilyUnavailable, setTemporarilyUnavailable] = useState(false),
     [notice, setNotice] = useState("");
+  const restoration = useRef(null);
+  const restore = useCallback(() => {
+    if (restoration.current) return restoration.current;
+    if (!sessionStorage.getItem(TOKEN_KEY)) {
+      setToken(null);
+      setUser(null);
+      setLoading(false);
+      setTemporarilyUnavailable(false);
+      return Promise.resolve();
+    }
+    setLoading(true);
+    setTemporarilyUnavailable(false);
+    const attempt = authService
+      .me()
+      .then((u) => {
+        if (sessionStorage.getItem(TOKEN_KEY)) {
+          setUser(u);
+          setNotice("");
+        }
+      })
+      .catch((e) => {
+        if (e.response?.status === 401) {
+          sessionStorage.removeItem(TOKEN_KEY);
+          setToken(null);
+          setUser(null);
+          setNotice("Your session has expired. Please sign in again.");
+        } else {
+          setUser(null);
+          setTemporarilyUnavailable(true);
+          setNotice("Unable to verify your session right now.");
+        }
+      })
+      .finally(() => {
+        setLoading(false);
+        restoration.current = null;
+      });
+    restoration.current = attempt;
+    return attempt;
+  }, []);
   useEffect(() => {
-    let active = true;
-    if (sessionStorage.getItem(TOKEN_KEY))
-      authService
-        .me()
-        .then((u) => {
-          if (active && sessionStorage.getItem(TOKEN_KEY)) setUser(u);
-        })
-        .catch((e) => {
-          if (active) {
-            sessionStorage.removeItem(TOKEN_KEY);
-            setToken(null);
-            setNotice(
-              e.response?.status === 401
-                ? "Your session has expired. Please sign in again."
-                : errorMessage(e),
-            );
-          }
-        })
-        .finally(() => {
-          if (active) setLoading(false);
-        });
+    restore();
     const expire = () => {
       setUser(null);
       setToken(null);
       setLoading(false);
+      setTemporarilyUnavailable(false);
       setNotice("Your session has expired. Please sign in again.");
     };
     window.addEventListener("session-expired", expire);
     return () => {
-      active = false;
       window.removeEventListener("session-expired", expire);
     };
-  }, []);
+  }, [restore]);
   async function login(body) {
     const result = await authService.login(body);
     sessionStorage.setItem(TOKEN_KEY, result.access_token);
     setToken(result.access_token);
     setUser(result.user);
+    setTemporarilyUnavailable(false);
     setNotice("");
   }
   function logout() {
     sessionStorage.removeItem(TOKEN_KEY);
     setToken(null);
     setUser(null);
+    setTemporarilyUnavailable(false);
     setNotice("");
   }
   return (
-    <Context.Provider value={{ user, token, loading, notice, login, logout }}>
+    <Context.Provider
+      value={{
+        user,
+        token,
+        loading,
+        temporarilyUnavailable,
+        notice,
+        login,
+        logout,
+        retry: restore,
+      }}
+    >
       {children}
     </Context.Provider>
   );

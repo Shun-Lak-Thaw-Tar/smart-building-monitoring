@@ -4,6 +4,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validato
 
 from app.schemas.auth import UserBrief
 from app.schemas.building import BuildingBrief
+from app.schemas.ids import DatabaseId
 
 
 class RequestPriority(str, Enum):
@@ -21,8 +22,8 @@ class RequestStatus(str, Enum):
 class MaintenanceRequestCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
-    building_id: int
-    equipment_id: int | None = None
+    building_id: DatabaseId
+    equipment_id: DatabaseId | None = None
     room_location: str = Field(min_length=1, max_length=150)
     fault_category: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=5000)
@@ -65,7 +66,7 @@ class RequestStatusHistoryResponse(BaseModel):
 
 class MaintenanceRequestAssign(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    assigned_to: int
+    assigned_to: DatabaseId
 
 
 class MaintenanceRequestStatusUpdate(BaseModel):

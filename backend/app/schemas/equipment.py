@@ -3,6 +3,7 @@ from enum import Enum
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.building import BuildingBrief
+from app.schemas.ids import DatabaseId
 
 
 class EquipmentStatus(str, Enum):
@@ -25,7 +26,7 @@ class EquipmentResponse(BaseModel):
 
 class EquipmentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-    building_id: int
+    building_id: DatabaseId
     equipment_name: str = Field(min_length=1, max_length=150)
     equipment_type: str = Field(min_length=1, max_length=100)
     location: str = Field(min_length=1, max_length=150)

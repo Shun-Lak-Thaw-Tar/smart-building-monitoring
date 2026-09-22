@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -10,6 +10,7 @@ from app.models import Building, Equipment, MaintenanceHistory
 from app.schemas.equipment import EquipmentCreate, EquipmentResponse, EquipmentUpdate
 from app.services.requests import write_transaction
 from app.schemas.maintenance_history import MaintenanceHistoryResponse
+from app.schemas.ids import OptionalQueryDatabaseId, PathDatabaseId
 from app.services.maintenance_history import ordered_history_query
 
 router = APIRouter(
@@ -21,7 +22,7 @@ router = APIRouter(
 @router.get("", response_model=list[EquipmentResponse], summary="List equipment")
 def list_equipment(
     session: Annotated[Session, Depends(get_session)],
-    building_id: Annotated[int | None, Query(description="Filter by building ID")] = None,
+    building_id: OptionalQueryDatabaseId = None,
 ):
     statement = select(Equipment).options(joinedload(Equipment.building))
     if building_id is not None:
@@ -35,7 +36,7 @@ def list_equipment(
     "/{equipment_id}", response_model=EquipmentResponse, summary="Get equipment",
     responses={404: {"description": "Equipment not found"}},
 )
-def get_equipment(equipment_id: int, session: Annotated[Session, Depends(get_session)]):
+def get_equipment(equipment_id: PathDatabaseId, session: Annotated[Session, Depends(get_session)]):
     equipment = session.scalar(select(Equipment).options(
         joinedload(Equipment.building),
     ).where(Equipment.equipment_id == equipment_id))
@@ -60,7 +61,7 @@ def create_equipment(data: EquipmentCreate, session: Annotated[Session, Depends(
 
 @router.patch("/{equipment_id}", response_model=EquipmentResponse, summary="Update equipment (ADMIN)",
               dependencies=[Depends(require_admin)], responses={403: {"description": "Insufficient permissions"}, 404: {"description": "Equipment not found"}})
-def update_equipment(equipment_id: int, data: EquipmentUpdate, session: Annotated[Session, Depends(get_session)]):
+def update_equipment(equipment_id: PathDatabaseId, data: EquipmentUpdate, session: Annotated[Session, Depends(get_session)]):
     with write_transaction(session):
         equipment = session.scalar(select(Equipment).options(joinedload(Equipment.building))
                                    .where(Equipment.equipment_id == equipment_id).with_for_update(of=Equipment))
@@ -76,7 +77,7 @@ def update_equipment(equipment_id: int, data: EquipmentUpdate, session: Annotate
 
 @router.get("/{equipment_id}/history", response_model=list[MaintenanceHistoryResponse], summary="Get equipment maintenance history (ADMIN)",
             dependencies=[Depends(require_admin)], responses={403: {"description": "Insufficient permissions"}, 404: {"description": "Equipment not found"}})
-def equipment_history(equipment_id: int, session: Annotated[Session, Depends(get_session)]):
+def equipment_history(equipment_id: PathDatabaseId, session: Annotated[Session, Depends(get_session)]):
     if session.get(Equipment, equipment_id) is None:
         raise HTTPException(404, "Equipment not found")
     return session.scalars(ordered_history_query().where(MaintenanceHistory.equipment_id == equipment_id)).all()

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CirclePlus } from "lucide-react";
 import { useResource } from "../hooks/useResource";
+import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useAction } from "../hooks/useAction";
 import { useToast } from "../context/ToastContext";
 import { maintenanceService } from "../services/maintenanceService";
@@ -33,6 +34,13 @@ export default function Maintenance() {
       }),
     building + ":" + equipment,
   );
+  useRefreshOnFocus(async () => {
+    const results = await Promise.all([
+      options.refresh({ background: true }),
+      resource.refresh({ background: true }),
+    ]);
+    return results.every(Boolean);
+  });
   const [buildings, items] = options.data || [[], []],
     filteredEquipment = items.filter(
       (e) => !building || e.building.building_id === Number(building),
@@ -186,7 +194,7 @@ export default function Maintenance() {
           onClose={() => setOpen(false)}
           onSaved={() => {
             setOpen(false);
-            resource.refresh();
+            resource.refresh({ background: true });
           }}
         />
       )}

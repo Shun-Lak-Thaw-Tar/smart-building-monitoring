@@ -12,12 +12,47 @@ protected endpoints require configured database/JWT settings. CORS is enabled on
 origins in `CORS_ORIGINS` (a JSON array). Production CORS is not configured.
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest
+.\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m alembic heads
 .\.venv\Scripts\python.exe -m alembic history
 ```
 
 Expected Alembic head: `9cf1817549e9` (initial database schema).
+
+## Tests
+
+Database tests use `TEST_DATABASE_URL`, never `DATABASE_URL`. It must point to a
+separate PostgreSQL database whose name ends in `_test`, such as
+`smart_building_test`. The runner applies Alembic migrations, clears only that
+test database, and seeds the deterministic 3-building/9-equipment/15-reading
+baseline before the suite starts. Test writes use rollback transactions.
+
+Create the test database once with a PostgreSQL administrator, then grant the
+application role access. Do not run these statements against `smart_building`:
+
+```sql
+CREATE DATABASE smart_building_test OWNER smart_building_app;
+```
+
+Add its URL to ignored `backend/.env` without committing credentials:
+
+```dotenv
+TEST_DATABASE_URL=postgresql+psycopg://USERNAME:PASSWORD@localhost:5432/smart_building_test
+```
+
+Run the suite with:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider
+```
+
+The test runner refuses a missing URL, a non-PostgreSQL URL, or a database name
+that does not end in `_test`. Tests without the `database` marker can still run
+without a test database:
+
+```powershell
+.\.venv\Scripts\python.exe -m pytest -m "not database" -q
+```
 
 Configure DATABASE_URL in the ignored local `.env`, then run:
 

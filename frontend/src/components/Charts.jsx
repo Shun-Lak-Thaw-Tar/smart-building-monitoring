@@ -16,7 +16,19 @@ import {
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { labels, requestStatuses, priorities, dateTime } from "../utils/format";
 import { EmptyState } from "./UI";
-const colors = ["#7aa6b6", "#efbd62", "#3c9580"];
+const colors = ["var(--chart-one)", "var(--chart-two)", "var(--chart-three)"];
+const tooltipTheme = {
+  contentStyle: {
+    background: "var(--surface-dark)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-light)",
+    borderRadius: 12,
+    boxShadow: "var(--shadow-card)",
+  },
+  labelStyle: { color: "var(--text-primary)", marginBottom: 6, fontSize: 12 },
+  itemStyle: { fontSize: 12, color: "var(--text-primary)" },
+  wrapperStyle: { outline: "none" },
+};
 export function RequestCharts({ requests }) {
   const reduced = useReducedMotion(),
     statuses = requestStatuses.map((v, i) => ({
@@ -60,7 +72,7 @@ export function RequestCharts({ requests }) {
                       <Cell key={s.name} fill={s.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip {...tooltipTheme} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="donut-total">
@@ -98,20 +110,23 @@ export function RequestCharts({ requests }) {
                 data={priority}
                 margin={{ left: -20, right: 15, top: 15, bottom: 0 }}
               >
-                <CartesianGrid vertical={false} stroke="#eef2f3" />
+                <CartesianGrid vertical={false} stroke="var(--chart-grid)" />
                 <XAxis
                   dataKey="name"
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 12, fill: "#7c939a" }}
+                  tick={{ fontSize: 12, fill: "var(--text-secondary)" }}
                 />
                 <YAxis
                   allowDecimals={false}
                   axisLine={false}
                   tickLine={false}
-                  tick={{ fontSize: 11, fill: "#8da0a5" }}
+                  tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
                 />
-                <Tooltip cursor={{ fill: "#f3f8f8" }} />
+                <Tooltip
+                  {...tooltipTheme}
+                  cursor={{ fill: "var(--surface-soft)" }}
+                />
                 <Bar
                   dataKey="value"
                   name="Requests"
@@ -120,7 +135,11 @@ export function RequestCharts({ requests }) {
                   isAnimationActive={!reduced}
                   animationDuration={500}
                 >
-                  {["#8fb8be", "#edc476", "#cf7b7b"].map((c) => (
+                  {[
+                    "var(--chart-one)",
+                    "var(--attention)",
+                    "var(--critical)",
+                  ].map((c) => (
                     <Cell fill={c} key={c} />
                   ))}
                 </Bar>
@@ -136,15 +155,13 @@ export function RequestCharts({ requests }) {
 }
 export function EnvironmentCharts({ readings }) {
   const reduced = useReducedMotion(),
-    data = [...readings]
-      .reverse()
-      .map((r) => ({
-        ...r,
-        time: new Intl.DateTimeFormat(undefined, {
-          hour: "numeric",
-          minute: "2-digit",
-        }).format(new Date(r.recorded_at)),
-      }));
+    data = [...readings].reverse().map((r) => ({
+      ...r,
+      time: new Intl.DateTimeFormat(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(new Date(r.recorded_at)),
+    }));
   if (!data.length)
     return (
       <EmptyState title="No environmental readings are available for this building." />
@@ -154,60 +171,87 @@ export function EnvironmentCharts({ readings }) {
   return (
     <div className="environment-charts">
       <h3>Temperature & humidity</h3>
-      <div className="trend-chart">
+      <div
+        className="trend-chart"
+        role="img"
+        aria-label="Temperature and humidity readings over time. The chart legend identifies both lines."
+      >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
             margin={{ left: -15, right: -10, top: 15, bottom: 5 }}
           >
-            <CartesianGrid stroke="#edf2f3" vertical={false} />
-            <XAxis dataKey="time" tick={{ fontSize: 10 }} tickLine={false} />
-            <YAxis yAxisId="temp" tick={{ fontSize: 10 }} unit="°C" />
+            <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+              tickLine={false}
+            />
+            <YAxis
+              yAxisId="temp"
+              tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+              unit="°C"
+            />
             <YAxis
               yAxisId="humidity"
               orientation="right"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
               unit="%"
             />
-            <Tooltip labelFormatter={tooltipLabel} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Tooltip {...tooltipTheme} labelFormatter={tooltipLabel} />
+            <Legend
+              wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)" }}
+            />
             <Line
               yAxisId="temp"
               dataKey="temperature"
               name="Temperature (°C)"
-              stroke="#0f6b78"
+              stroke="var(--chart-one)"
               strokeWidth={2}
               isAnimationActive={!reduced}
+              animationDuration={500}
             />
             <Line
               yAxisId="humidity"
               dataKey="humidity"
               name="Humidity (%)"
-              stroke="#d19b39"
+              stroke="var(--chart-two)"
               strokeWidth={2}
               isAnimationActive={!reduced}
+              animationDuration={500}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
       <h3>Energy consumption</h3>
-      <div className="trend-chart">
+      <div
+        className="trend-chart"
+        role="img"
+        aria-label="Energy consumption readings over time. The chart legend identifies the line."
+      >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={data}
             margin={{ left: 0, right: 20, top: 15, bottom: 5 }}
           >
-            <CartesianGrid stroke="#edf2f3" vertical={false} />
-            <XAxis dataKey="time" tick={{ fontSize: 10 }} tickLine={false} />
-            <YAxis tick={{ fontSize: 10 }} />
-            <Tooltip labelFormatter={tooltipLabel} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+            <XAxis
+              dataKey="time"
+              tick={{ fontSize: 11, fill: "var(--text-secondary)" }}
+              tickLine={false}
+            />
+            <YAxis tick={{ fontSize: 11, fill: "var(--text-secondary)" }} />
+            <Tooltip {...tooltipTheme} labelFormatter={tooltipLabel} />
+            <Legend
+              wrapperStyle={{ fontSize: 12, color: "var(--text-secondary)" }}
+            />
             <Line
               dataKey="energy_consumption"
               name="Energy (kWh)"
-              stroke="#0f6b78"
+              stroke="var(--chart-one)"
               strokeWidth={2}
               isAnimationActive={!reduced}
+              animationDuration={500}
             />
           </LineChart>
         </ResponsiveContainer>
