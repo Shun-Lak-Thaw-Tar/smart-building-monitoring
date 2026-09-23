@@ -86,7 +86,7 @@ def test_openapi_and_read_only_routes(api_request):
     assert resources | {"/api/health", "/api/auth/login", "/api/auth/me", "/api/users/admins"} <= set(schema["paths"])
     assert set(schema["paths"]) == resources | {
         "/api/health", "/api/auth/login", "/api/auth/me", "/api/auth/change-password", "/api/users/admins",
-        "/api/users/staff", "/api/users/staff/{user_id}/status",
+        "/api/users/staff", "/api/users/staff/{user_id}/status", "/api/alerts", "/api/alerts/{alert_id}", "/api/alerts/{alert_id}/resolve", "/api/energy/buildings", "/api/comfort/buildings", "/api/campus/overview",
         "/api/maintenance-history", "/api/equipment/{equipment_id}/history",
         "/api/monitoring/buildings", "/api/monitoring/buildings/{building_id}",
         "/api/requests", "/api/requests/my", "/api/requests/{request_id}",

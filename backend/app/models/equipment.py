@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from .building import Building
     from .maintenance_request import MaintenanceRequest
     from .maintenance_history import MaintenanceHistory
+    from .alert import Alert
 
 
 class Equipment(Base):
@@ -27,3 +28,4 @@ class Equipment(Base):
     building: Mapped[Building] = relationship(back_populates="equipment")
     requests: Mapped[list[MaintenanceRequest]] = relationship(back_populates="equipment", passive_deletes="all")
     maintenance_records: Mapped[list[MaintenanceHistory]] = relationship(back_populates="equipment", passive_deletes="all")
+    alerts: Mapped[list[Alert]] = relationship(back_populates="equipment", passive_deletes="all")

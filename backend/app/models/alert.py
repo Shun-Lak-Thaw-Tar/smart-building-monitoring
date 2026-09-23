@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Identity, String, Text, func, text
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db.base import Base
+
+if TYPE_CHECKING:
+    from .building import Building
+    from .equipment import Equipment
+
+
+class Alert(Base):
+    __tablename__ = "alerts"
+    __table_args__ = (
+        CheckConstraint("category IN ('EQUIPMENT', 'ENERGY', 'COMFORT')", name="ck_alerts_category"),
+        CheckConstraint("severity IN ('INFO', 'WARNING', 'CRITICAL')", name="ck_alerts_severity"),
+        CheckConstraint("status IN ('ACTIVE', 'RESOLVED')", name="ck_alerts_status"),
+    )
+
+    alert_id: Mapped[int] = mapped_column(Identity(), primary_key=True)
+    building_id: Mapped[int] = mapped_column(ForeignKey("buildings.building_id", ondelete="RESTRICT"), index=True)
+    equipment_id: Mapped[int | None] = mapped_column(ForeignKey("equipment.equipment_id", ondelete="SET NULL"), index=True)
+    category: Mapped[str] = mapped_column(String(20), index=True)
+    severity: Mapped[str] = mapped_column(String(20), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), server_default=text("'ACTIVE'"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    building: Mapped[Building] = relationship(back_populates="alerts")
+    equipment: Mapped[Equipment | None] = relationship(back_populates="alerts")

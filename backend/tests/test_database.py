@@ -19,7 +19,7 @@ from app.db.seed import BUILDINGS, seed_baseline
 from app.db.session import get_engine
 from app.models import (
     Building, Equipment, EnvironmentalReading, User, MaintenanceRequest,
-    RequestStatusHistory, MaintenanceHistory,
+    RequestStatusHistory, MaintenanceHistory, Alert,
 )
 
 pytestmark = pytest.mark.database
@@ -44,7 +44,7 @@ def test_schema_and_migration_head(connection):
     assert MigrationContext.configure(connection).get_current_revision() == ScriptDirectory.from_config(config).get_current_head()
     inspector = inspect(connection)
     expected = {"users", "buildings", "equipment", "maintenance_requests",
-                "request_status_history", "maintenance_history", "environmental_readings"}
+                "request_status_history", "maintenance_history", "environmental_readings", "alerts"}
     assert set(inspector.get_table_names(schema="public")) == expected | {"alembic_version"}
     configure_mappers()
     for name in expected:
@@ -76,6 +76,8 @@ def test_foreign_keys_indexes_and_checks(connection):
         ("maintenance_history", "equipment_id"): ("equipment", "equipment_id", "RESTRICT"),
         ("maintenance_history", "request_id"): ("maintenance_requests", "request_id", "SET NULL"),
         ("maintenance_history", "completed_by"): ("users", "user_id", "RESTRICT"),
+        ("alerts", "building_id"): ("buildings", "building_id", "RESTRICT"),
+        ("alerts", "equipment_id"): ("equipment", "equipment_id", "SET NULL"),
     }
     actual = {}
     for name in Base.metadata.tables:
@@ -89,10 +91,11 @@ def test_foreign_keys_indexes_and_checks(connection):
         "request_status_history": {(c,) for c in ("request_id", "changed_by", "changed_at")},
         "maintenance_history": {(c,) for c in ("equipment_id", "request_id", "completed_by", "completed_at")},
         "environmental_readings": {("building_id", "recorded_at")},
+        "alerts": {(c,) for c in ("building_id", "equipment_id", "category", "severity", "status", "created_at")},
     }
     for name, columns in expected_indexes.items():
         assert {tuple(i["column_names"]) for i in inspector.get_indexes(name)} == columns
-    assert sum(len(inspector.get_check_constraints(name)) for name in Base.metadata.tables) == 8
+    assert sum(len(inspector.get_check_constraints(name)) for name in Base.metadata.tables) == 11
 
 
 @pytest.fixture

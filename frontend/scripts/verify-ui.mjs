@@ -32,7 +32,7 @@ const base = process.env.BROWSER_TEST_URL || "http://localhost:5173",
   marker = "UI verification " + Date.now(),
   staffName = marker + " Staff",
   initialPassword = crypto.randomUUID() + "Aa1!";
-let equipmentId, linkedId, userId, generalId;
+let equipmentId, linkedId, userId, generalId, alertId;
 async function login(role, name, password) {
   await page.goto(base + "/login");
   await page
@@ -162,6 +162,21 @@ try {
   await logout();
   await login("ADMIN");
   await page.getByText("Requests by status", { exact: true }).waitFor();
+  await go("/admin/energy");
+  await page.getByRole("heading", { name: "Energy Intelligence", exact: true }).waitFor();
+  await page.getByText(/latest reading is 20% or more above/i).waitFor();
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  console.log("Energy Intelligence summary, explanation and refresh passed.");
+  await go("/admin/comfort");
+  await page.getByRole("heading", { name: "Comfort Intelligence", exact: true }).waitFor();
+  await page.getByText(/Comfortable: 20–26°C and 40–60% humidity/i).waitFor();
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  console.log("Comfort Intelligence summary, explanation and refresh passed.");
+  await go("/admin/operations");
+  await page.getByRole("heading", { name: "Campus Operations", exact: true }).waitFor();
+  await page.getByRole("link", { name: "Requests", exact: true }).first().waitFor();
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  console.log("Campus Operations overview, links and refresh passed.");
   await go("/admin/requests");
   await page.getByLabel("Search", { exact: true }).fill(marker + " general");
   await page.getByRole("button", { name: "Apply", exact: true }).click();
@@ -215,6 +230,29 @@ try {
   );
   equipmentId = equipment.equipment_id;
   await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await go("/admin/alerts");
+  await page.getByRole("button", { name: "Create alert", exact: true }).click();
+  modal = page.getByRole("dialog");
+  await modal.getByLabel("Building", { exact: true }).selectOption({ label: "Building 216" });
+  await modal.getByLabel("Equipment", { exact: true }).selectOption(String(equipmentId));
+  await modal.getByLabel("Category", { exact: true }).selectOption("EQUIPMENT");
+  await modal.getByLabel("Severity", { exact: true }).selectOption("WARNING");
+  await modal.getByLabel("Alert title", { exact: true }).fill(marker + " alert");
+  await modal.getByLabel("Description", { exact: true }).fill(marker + " alert description");
+  const alert = await saveResponse("/alerts", () =>
+    modal.getByRole("button", { name: "Create alert", exact: true }).click(),
+  );
+  alertId = alert.alert_id;
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.getByLabel("Severity", { exact: true }).selectOption("WARNING");
+  await page.getByText(marker + " alert", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "View alert details " + marker + " alert", exact: true }).click();
+  modal = page.getByRole("dialog");
+  await saveResponse(`/alerts/${alertId}/resolve`, () => modal.getByRole("button", { name: "Resolve alert", exact: true }).click());
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.getByLabel("Status", { exact: true }).selectOption("RESOLVED");
+  await page.getByText(marker + " alert", { exact: true }).waitFor();
+  console.log("Alert creation, filtering, detail and resolution passed.");
   await page
     .locator(".management-table")
     .getByRole("button", { name: "Edit " + marker, exact: true })
@@ -342,6 +380,10 @@ try {
       "/admin/equipment",
       "/admin/maintenance",
       "/admin/staff",
+      "/admin/alerts",
+      "/admin/energy",
+      "/admin/comfort",
+      "/admin/operations",
       "/admin/monitoring",
     ]) {
       await go(path);
@@ -583,7 +625,7 @@ try {
 } finally {
   await browser.close();
   const cleanup =
-    'import sys; from sqlalchemy import delete; from app.db.session import get_engine; from app.models import Equipment, MaintenanceHistory, MaintenanceRequest, User; from sqlalchemy.orm import Session; eq, req, uid, marker, general=sys.argv[1:]; s=Session(get_engine()); eid=int(eq) if eq else None; rid=int(req) if req else None; user_id=int(uid) if uid else None; e=s.get(Equipment,eid) if eid else None; assert not e or e.equipment_name==marker; s.execute(delete(MaintenanceHistory).where(MaintenanceHistory.equipment_id==eid)) if e else None; s.execute(delete(MaintenanceRequest).where(MaintenanceRequest.request_id==rid,MaintenanceRequest.description==marker+" linked request")) if rid else None; s.execute(delete(Equipment).where(Equipment.equipment_id==eid,Equipment.equipment_name==marker)) if e else None; s.execute(delete(User).where(User.user_id==user_id,User.name==marker+" Staff")) if user_id else None; s.execute(delete(MaintenanceRequest).where(MaintenanceRequest.request_id==int(general or 0),MaintenanceRequest.description==marker+" general request")); s.commit(); s.close(); print("Temporary verification records cleaned.")';
+    'import sys; from sqlalchemy import delete; from app.db.session import get_engine; from app.models import Alert, Equipment, MaintenanceHistory, MaintenanceRequest, User; from sqlalchemy.orm import Session; eq, req, uid, marker, general, alert=sys.argv[1:]; s=Session(get_engine()); eid=int(eq) if eq else None; rid=int(req) if req else None; user_id=int(uid) if uid else None; alert_id=int(alert) if alert else None; e=s.get(Equipment,eid) if eid else None; assert not e or e.equipment_name==marker; s.execute(delete(Alert).where(Alert.alert_id==alert_id,Alert.title==marker+" alert")) if alert_id else None; s.execute(delete(MaintenanceHistory).where(MaintenanceHistory.equipment_id==eid)) if e else None; s.execute(delete(MaintenanceRequest).where(MaintenanceRequest.request_id==rid,MaintenanceRequest.description==marker+" linked request")) if rid else None; s.execute(delete(Equipment).where(Equipment.equipment_id==eid,Equipment.equipment_name==marker)) if e else None; s.execute(delete(User).where(User.user_id==user_id,User.name==marker+" Staff")) if user_id else None; s.execute(delete(MaintenanceRequest).where(MaintenanceRequest.request_id==int(general or 0),MaintenanceRequest.description==marker+" general request")); s.commit(); s.close(); print("Temporary verification records cleaned.")';
   console.log(
     execFileSync(
       "../backend/.venv/Scripts/python.exe",
@@ -595,6 +637,7 @@ try {
         String(userId || ""),
         marker,
         String(generalId || ""),
+        String(alertId || ""),
       ],
       { cwd: "../backend", encoding: "utf8" },
     ).trim(),

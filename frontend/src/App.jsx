@@ -19,6 +19,10 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const Equipment = lazy(() => import("./pages/Equipment"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const StaffAccounts = lazy(() => import("./pages/StaffAccounts"));
+const Alerts = lazy(() => import("./pages/Alerts"));
+const Energy = lazy(() => import("./pages/Energy"));
+const Comfort = lazy(() => import("./pages/Comfort"));
+const CampusOperations = lazy(() => import("./pages/CampusOperations"));
 function Home() {
   const { t } = useLanguage();
   const { user, loading } = useAuth();
@@ -64,6 +68,10 @@ function Application() {
                     <Route path="equipment" element={<Equipment />} />
                     <Route path="maintenance" element={<Maintenance />} />
                     <Route path="staff" element={<StaffAccounts />} />
+                    <Route path="alerts" element={<Alerts />} />
+                    <Route path="energy" element={<Energy />} />
+                    <Route path="comfort" element={<Comfort />} />
+                    <Route path="operations" element={<CampusOperations />} />
                     <Route
                       index
                       element={<Navigate to="dashboard" replace />}

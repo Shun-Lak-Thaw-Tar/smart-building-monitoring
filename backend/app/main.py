@@ -5,7 +5,7 @@ from sqlalchemy.exc import DBAPIError
 from app.core.config import settings
 from app.core.dependencies import get_current_user
 from app.db.errors import database_error_handler
-from app.routers import auth, buildings, equipment, environment, maintenance_history, monitoring, requests, users
+from app.routers import alerts, auth, buildings, campus, comfort, energy, equipment, environment, maintenance_history, monitoring, requests, users
 
 app = FastAPI(title="Smart Building Monitoring API", version="0.1.0")
 app.add_exception_handler(DBAPIError, database_error_handler)
@@ -14,6 +14,10 @@ app.include_router(users.router)
 app.include_router(requests.router)
 app.include_router(maintenance_history.router)
 app.include_router(monitoring.router)
+app.include_router(alerts.router, dependencies=[Depends(get_current_user)], responses={401: {"description": "Authentication required or invalid token"}})
+app.include_router(energy.router, dependencies=[Depends(get_current_user)], responses={401: {"description": "Authentication required or invalid token"}})
+app.include_router(comfort.router, dependencies=[Depends(get_current_user)], responses={401: {"description": "Authentication required or invalid token"}})
+app.include_router(campus.router)
 for resource_router in (buildings.router, equipment.router, environment.router):
     app.include_router(resource_router, dependencies=[Depends(get_current_user)],
                        responses={401: {"description": "Authentication required or invalid token"}})

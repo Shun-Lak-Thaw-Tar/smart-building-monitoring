@@ -35,7 +35,7 @@ def isolated_test_database():
         with engine.begin() as connection:
             # Fixed table names plus the _test guard above prevent development-data loss.
             connection.execute(text(
-                "TRUNCATE TABLE maintenance_history, request_status_history, maintenance_requests, "
+                "TRUNCATE TABLE alerts, maintenance_history, request_status_history, maintenance_requests, "
                 "environmental_readings, equipment, users, buildings RESTART IDENTITY CASCADE"
             ))
         with Session(engine) as session, session.begin():
