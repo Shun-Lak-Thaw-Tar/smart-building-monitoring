@@ -7,13 +7,14 @@ export default function RequestList({
   admin = false,
   compact = false,
   emptyTitle = "No maintenance requests yet.",
+  copy = {},
 }) {
   if (!requests.length)
     return (
-      <EmptyState title={emptyTitle}>
+      <EmptyState title={copy.emptyTitle || emptyTitle}>
         {!admin && (
           <Link className="button" to="/staff/requests/new">
-            Submit your first request
+            {copy.firstRequest || "Submit your first request"}
           </Link>
         )}
       </EmptyState>
@@ -25,20 +26,20 @@ export default function RequestList({
         <table>
           <thead>
             <tr>
-              <th>Request</th>
-              <th>Building / location</th>
-              <th>Category</th>
-              <th>Priority</th>
-              <th>Status</th>
+              <th>{copy.request || "Request"}</th>
+              <th>{copy.buildingLocation || "Building / location"}</th>
+              <th>{copy.category || "Category"}</th>
+              <th>{copy.priority || "Priority"}</th>
+              <th>{copy.status || "Status"}</th>
               {admin && !compact && (
                 <>
-                  <th>Submitted by</th>
-                  <th>Assigned to</th>
+                  <th>{copy.submittedBy || "Submitted by"}</th>
+                  <th>{copy.assignedTo || "Assigned to"}</th>
                 </>
               )}
-              <th>Created</th>
+              <th>{copy.created || "Created"}</th>
               <th>
-                <span className="sr-only">Action</span>
+                <span className="sr-only">{copy.action || "Action"}</span>
               </th>
             </tr>
           </thead>
@@ -54,7 +55,7 @@ export default function RequestList({
                   <strong>{r.building.building_name}</strong>
                   <small>{r.room_location}</small>
                 </td>
-                <td>{r.fault_category}</td>
+                <td>{copy.categoryLabel?.(r.fault_category) || r.fault_category}</td>
                 <td>
                   <Badge value={r.priority} />
                 </td>
@@ -64,17 +65,19 @@ export default function RequestList({
                 {admin && !compact && (
                   <>
                     <td>{r.submitted_by.name}</td>
-                    <td>{r.assigned_to?.name || "Not assigned yet"}</td>
+                    <td>{r.assigned_to?.name || copy.unassigned || "Not assigned yet"}</td>
                   </>
                 )}
-                <td className="date-cell">{dateTime(r.created_at)}</td>
+                <td className="date-cell">
+                  {copy.formatDate?.(r.created_at) || dateTime(r.created_at)}
+                </td>
                 <td>
                   <Link
                     className="table-action"
                     to={path + r.request_id}
-                    aria-label={`${admin ? "Manage" : "View"} request #${r.request_id}`}
+                    aria-label={`${admin ? copy.manage || "Manage" : copy.view || "View"} ${copy.request || "request"} #${r.request_id}`}
                   >
-                    {admin ? "Manage" : "View"}
+                    {admin ? copy.manage || "Manage" : copy.view || "View"}
                     <ArrowUpRight size={14} />
                   </Link>
                 </td>
@@ -91,20 +94,20 @@ export default function RequestList({
             key={r.request_id}
           >
             <div className="record-top">
-              <strong>Request #{r.request_id}</strong>
+              <strong>{copy.request || "Request"} #{r.request_id}</strong>
               <Badge value={r.status} />
             </div>
-            <h3>{r.fault_category}</h3>
+            <h3>{copy.categoryLabel?.(r.fault_category) || r.fault_category}</h3>
             <p>
               <MapPin size={14} />
               {r.building.building_name} · {r.room_location}
             </p>
             {admin && (
-              <p>Assigned to: {r.assigned_to?.name || "Not assigned yet"}</p>
+              <p>{copy.assignedTo || "Assigned to"}: {r.assigned_to?.name || copy.unassigned || "Not assigned yet"}</p>
             )}
             <div className="record-bottom">
               <Badge value={r.priority} />
-              <small>{dateTime(r.created_at)}</small>
+              <small>{copy.formatDate?.(r.created_at) || dateTime(r.created_at)}</small>
             </div>
           </Link>
         ))}

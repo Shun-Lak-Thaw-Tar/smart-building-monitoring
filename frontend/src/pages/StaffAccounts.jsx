@@ -4,6 +4,7 @@ import { useResource } from "../hooks/useResource";
 import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useAction } from "../hooks/useAction";
 import { useToast } from "../context/ToastContext";
+import { useLanguage } from "../context/LanguageContext";
 import { userService } from "../services/userService";
 import {
   PageHeader,
@@ -16,28 +17,32 @@ import {
   Badge,
 } from "../components/UI";
 export default function StaffAccounts() {
+  const { t } = useLanguage();
   const resource = useResource(userService.staff),
-    [open, setOpen] = useState(false);
-  useRefreshOnFocus(resource.refresh);
+    [open, setOpen] = useState(false),
+    action = useAction(),
+    toast = useToast();
+  useRefreshOnFocus(resource.refresh, t("staffAccountsPage.refreshError"));
   return (
     <>
       <PageHeader
-        title="Staff accounts"
-        description="Manage Office Staff access to the Smart Building Monitoring System."
+        eyebrow={t("staffAccountsPage.eyebrow")}
+        title={t("staffAccountsPage.title")}
+        description={t("staffAccountsPage.description")}
       >
         <button className="button" onClick={() => setOpen(true)}>
           <CirclePlus size={18} />
-          Create Staff Account
+          {t("staffAccountsPage.create")}
         </button>
       </PageHeader>
       <section className="panel">
         <div className="panel-heading">
-          <h2>Office Staff</h2>
+          <h2>{t("staffAccountsPage.officeStaff")}</h2>
           <span className="count-label">
-            {resource.data?.length || 0} accounts
+            {resource.data?.length || 0} {t(resource.data?.length === 1 ? "staffAccountsPage.oneAccount" : "staffAccountsPage.accounts")}
           </span>
         </div>
-        <ResourceState resource={resource}>
+        <ResourceState resource={resource} copy={{ loading: t("staffAccountsPage.loading"), retry: t("staffAccountsPage.retry"), error: t }}>
           {resource.data?.length ? (
             <div className="staff-list">
               {resource.data.map((u) => (
@@ -45,23 +50,36 @@ export default function StaffAccounts() {
                   <span className="avatar">{u.name.slice(0, 1)}</span>
                   <div>
                     <strong>{u.name}</strong>
-                    <small>Campus facilities access</small>
+                    <small>{t("staffAccountsPage.facilitiesAccess")}</small>
                   </div>
                   <span className="staff-access">
                     <ShieldCheck size={18} aria-hidden="true" />
                     <Badge value={u.role} />
+                    <Badge value={u.is_active ? "ACTIVE" : "DISABLED"} />
                   </span>
+                  <button
+                    className="button secondary staff-status-action"
+                    disabled={action.busy}
+                    onClick={() => action.run(async () => {
+                      await userService.setStaffStatus(u.user_id, !u.is_active);
+                      toast(t(u.is_active ? "staffAccountsPage.disabledSuccess" : "staffAccountsPage.enabledSuccess"));
+                      resource.refresh({ background: true });
+                    })}
+                  >
+                    {t(u.is_active ? "staffAccountsPage.disable" : "staffAccountsPage.enable")}
+                  </button>
                 </div>
               ))}
             </div>
           ) : (
-            <EmptyState title="No Staff accounts yet." />
+            <EmptyState title={t("staffAccountsPage.empty")} />
           )}
         </ResourceState>
       </section>
+      <ErrorAlert message={t(action.error)} />
       <p className="access-note">
         <Users size={17} />
-        New accounts receive Office Staff access.
+        {t("staffAccountsPage.accessNote")}
       </p>
       {open && (
         <StaffForm
@@ -76,6 +94,7 @@ export default function StaffAccounts() {
   );
 }
 function StaffForm({ onClose, onSaved }) {
+  const { t } = useLanguage();
   const action = useAction(),
     toast = useToast(),
     password = useRef(null),
@@ -84,11 +103,11 @@ function StaffForm({ onClose, onSaved }) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     if (!form.get("name").trim()) {
-      action.setError("Please enter a name.");
+      action.setError("staffAccountsPage.nameRequired");
       return;
     }
     if (password.current.value !== confirm.current.value) {
-      action.setError("Passwords must match.");
+      action.setError("staffAccountsPage.passwordMismatch");
       confirm.current.focus();
       return;
     }
@@ -99,16 +118,21 @@ function StaffForm({ onClose, onSaved }) {
       });
       password.current.value = "";
       confirm.current.value = "";
-      toast("Staff account created successfully.");
+      toast(t("staffAccountsPage.createSuccess"));
       onSaved();
     });
   }
   return (
-    <Modal title="Create Staff account" onClose={onClose} busy={action.busy}>
-      <p className="modal-intro">Create access for a member of Office Staff.</p>
-      <ErrorAlert message={action.error} />
-      <form onSubmit={submit}>
-        <Field label="Name" required>
+    <Modal title={t("staffAccountsPage.createDialog")} onClose={onClose} busy={action.busy} closeLabel={t("staffAccountsPage.closeDialog")}>
+      <p className="modal-intro">{t("staffAccountsPage.dialogIntro")}</p>
+      <ErrorAlert message={t(action.error)} />
+      <form
+        onSubmit={submit}
+        onInvalidCapture={(e) => e.target.setCustomValidity(t("staffAccountsPage.requiredValidation"))}
+        onInputCapture={(e) => e.target.setCustomValidity("")}
+        onChangeCapture={(e) => e.target.setCustomValidity("")}
+      >
+        <Field label={t("staffAccountsPage.name")} required>
           {(id) => (
             <input
               id={id}
@@ -120,9 +144,9 @@ function StaffForm({ onClose, onSaved }) {
           )}
         </Field>
         <Field
-          label="Initial Password"
+          label={t("staffAccountsPage.initialPassword")}
           required
-          hint="Use at least 8 characters."
+          hint={t("staffAccountsPage.passwordHint")}
         >
           {(id) => (
             <input
@@ -136,7 +160,7 @@ function StaffForm({ onClose, onSaved }) {
             />
           )}
         </Field>
-        <Field label="Confirm Password" required>
+        <Field label={t("staffAccountsPage.confirmPassword")} required>
           {(id) => (
             <input
               id={id}
@@ -150,7 +174,7 @@ function StaffForm({ onClose, onSaved }) {
           )}
         </Field>
         <div className="form-actions">
-          <SubmitButton busy={action.busy}>Create Staff account</SubmitButton>
+          <SubmitButton busy={action.busy} busyLabel={t("staffAccountsPage.saving")}>{t("staffAccountsPage.createDialog")}</SubmitButton>
         </div>
       </form>
     </Modal>

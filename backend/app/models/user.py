@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import CheckConstraint, DateTime, Identity, String, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Identity, String, func, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -20,6 +20,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20))
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=true())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     submitted_requests: Mapped[list[MaintenanceRequest]] = relationship(back_populates="submitter", foreign_keys="MaintenanceRequest.submitted_by", passive_deletes="all")

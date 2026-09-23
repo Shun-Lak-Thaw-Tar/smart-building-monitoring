@@ -17,3 +17,9 @@ class StaffAccountCreate(BaseModel):
         if isinstance(data, dict) and isinstance(data.get("password"), str):
             return {**data, "password": SecretStr(data["password"])}
         return data
+
+
+class StaffAccountStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    is_active: bool

@@ -3719,6 +3719,19 @@ nav a.active svg {
   gap: 12px;
   color: var(--dusty-denim);
 }
+.staff-status-action {
+  flex: 0 0 auto;
+}
+.badge-active {
+  color: var(--positive);
+  background: var(--positive-surface);
+  border-color: rgba(145, 214, 182, 0.2);
+}
+.badge-disabled {
+  color: var(--critical);
+  background: var(--critical-surface);
+  border-color: rgba(243, 166, 172, 0.2);
+}
 .access-note {
   color: var(--text-muted);
   font-size: 13px;
@@ -3825,4 +3838,189 @@ nav a.active svg {
 }
 .recharts-default-tooltip .recharts-tooltip-item {
   color: var(--text-primary) !important;
+}
+
+/* Royal Blue Smart Campus refinement: shared tokens preserve every layout. */
+:root {
+  --ink-black: #10233f;
+  --prussian-blue: #102f66;
+  --dusk-blue: #31588f;
+  --dusty-denim: #82aeea;
+  --alabaster-grey: #f6f9ff;
+  --background: #edf4ff;
+  --surface-dark: #ffffff;
+  --surface-mid: #e8f1ff;
+  --surface-soft: #f5f9ff;
+  --surface-light: #ffffff;
+  --text-primary: #10233f;
+  --text-secondary: #4e6380;
+  --text-dark: #10233f;
+  --text-muted: #607899;
+  --interactive: #165dcb;
+  --border-dark: rgba(22, 93, 203, 0.16);
+  --border-light: rgba(22, 93, 203, 0.1);
+  --shadow-soft: 0 10px 25px rgba(22, 69, 140, 0.12);
+  --shadow-card: 0 18px 40px rgba(22, 69, 140, 0.13);
+  --focus-ring: 0 0 0 3px rgba(55, 133, 234, 0.34);
+  --positive: #1f7a55;
+  --positive-surface: #e6f6ee;
+  --attention: #9a5a00;
+  --attention-surface: #fff4df;
+  --critical: #ae3544;
+  --critical-surface: #fff0f2;
+  --chart-one: #165dcb;
+  --chart-two: #4b9ce2;
+  --chart-three: #82aeea;
+  --chart-grid: rgba(22, 93, 203, 0.12);
+  color-scheme: light;
+}
+body {
+  background:
+    radial-gradient(circle at 88% -10%, rgba(103, 169, 255, 0.22), transparent 30rem),
+    var(--background);
+}
+.sidebar,
+.login-story {
+  background: linear-gradient(165deg, #0c2d62 0%, #123f82 58%, #165dcb 140%);
+}
+.topbar {
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom-color: var(--border-dark);
+  backdrop-filter: blur(16px);
+}
+.panel,
+.stat-card,
+.building-card,
+.record-card,
+.login-card {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: var(--border-dark);
+}
+.stat-card::before {
+  background: linear-gradient(90deg, #165dcb, #75b4ff);
+}
+.stat-card:hover,
+.building-card:hover {
+  border-color: rgba(22, 93, 203, 0.4);
+  box-shadow: var(--shadow-card);
+}
+.button {
+  background: linear-gradient(135deg, #165dcb, #0d4fad);
+  border-color: #0d4fad;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(22, 93, 203, 0.2);
+}
+.button:hover {
+  background: linear-gradient(135deg, #0f4eac, #083a85);
+}
+.button.secondary {
+  background: #fff;
+  color: #165dcb;
+  border-color: rgba(22, 93, 203, 0.28);
+  box-shadow: none;
+}
+input,
+select,
+textarea {
+  background: #fff;
+  border-color: rgba(22, 93, 203, 0.22);
+  color: var(--text-primary);
+}
+input:focus,
+select:focus,
+textarea:focus,
+button:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline-color: #165dcb;
+  box-shadow: var(--focus-ring);
+}
+.table-scroll,
+table thead {
+  border-color: var(--border-dark);
+}
+.modal,
+.toast {
+  background: #fff;
+  color: var(--text-primary);
+  border-color: var(--border-dark);
+}
+.modal::backdrop,
+.mobile-drawer::backdrop {
+  background: rgba(11, 37, 79, 0.54);
+}
+.badge {
+  font-weight: 700;
+}
+.theme-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  border: 1px solid var(--border-dark);
+  border-radius: 9px;
+  color: var(--interactive);
+  background: var(--surface-soft);
+}
+.theme-control select {
+  min-height: 30px;
+  padding: 2px 18px 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+[data-theme="dark"] {
+  --background: #08172e;
+  --surface-dark: #10284d;
+  --surface-mid: #163861;
+  --surface-soft: #17365d;
+  --surface-light: #10284d;
+  --text-primary: #f4f8ff;
+  --text-secondary: #c2d2e8;
+  --text-muted: #9eb4d1;
+  --interactive: #7eb7ff;
+  --border-dark: rgba(126, 183, 255, 0.24);
+  --border-light: rgba(232, 242, 255, 0.16);
+  --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.27);
+  --shadow-card: 0 18px 44px rgba(0, 0, 0, 0.34);
+  --chart-one: #7eb7ff;
+  --chart-two: #53d0c5;
+  --chart-three: #a2c8ff;
+  --chart-grid: rgba(126, 183, 255, 0.18);
+  --positive: #74d5a8;
+  --positive-surface: rgba(44, 151, 98, 0.2);
+  --attention: #ffd080;
+  --attention-surface: rgba(195, 133, 20, 0.2);
+  --critical: #ffadb5;
+  --critical-surface: rgba(191, 55, 69, 0.2);
+  color-scheme: dark;
+}
+[data-theme="dark"] body {
+  background:
+    radial-gradient(circle at 88% -10%, rgba(43, 115, 222, 0.24), transparent 30rem),
+    var(--background);
+}
+[data-theme="dark"] .panel,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .building-card,
+[data-theme="dark"] .record-card,
+[data-theme="dark"] .login-card,
+[data-theme="dark"] .modal,
+[data-theme="dark"] .toast {
+  background: var(--surface-dark);
+}
+[data-theme="dark"] .topbar {
+  background: rgba(8, 23, 46, 0.9);
+}
+[data-theme="dark"] .button.secondary {
+  background: var(--surface-dark);
+  color: var(--interactive);
+}
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background: #0c2140;
+  color: var(--text-primary);
 }

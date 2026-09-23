@@ -11,8 +11,9 @@ export default function BuildingCards({
   buildings,
   onSelect,
   compact = false,
+  copy = {},
 }) {
-  if (!buildings.length) return <EmptyState title="No buildings available." />;
+  if (!buildings.length) return <EmptyState title={copy.noBuildings || "No buildings available."} />;
   return (
     <div className={`building-grid ${compact ? "compact" : ""}`}>
       {buildings.map((b) => (
@@ -39,7 +40,7 @@ export default function BuildingCards({
                   {b.latest_environment?.temperature ?? "—"}
                   <small> °C</small>
                 </strong>
-                <span>Temperature</span>
+                <span>{copy.temperature || "Temperature"}</span>
               </div>
               <div>
                 <Droplets size={16} />
@@ -47,7 +48,7 @@ export default function BuildingCards({
                   {b.latest_environment?.humidity ?? "—"}
                   <small> %</small>
                 </strong>
-                <span>Humidity</span>
+                <span>{copy.humidity || "Humidity"}</span>
               </div>
               <div>
                 <Zap size={16} />
@@ -55,41 +56,41 @@ export default function BuildingCards({
                   {b.latest_environment?.energy_consumption ?? "—"}
                   <small> kWh</small>
                 </strong>
-                <span>Energy</span>
+                <span>{copy.energy || "Energy"}</span>
               </div>
             </div>
           )}
           <div className="building-meta">
             <span>
-              <strong>{b.equipment_summary.total}</strong> equipment
+              <strong>{b.equipment_summary.total}</strong> {copy.equipment || "equipment"}
             </span>
             <span>
               <strong>
                 {b.request_summary.pending + b.request_summary.in_progress}
               </strong>{" "}
-              open requests
+              {copy.openRequests || "open requests"}
             </span>
           </div>
           {!compact && (
             <>
               <div className="summary-lines">
-                <span>Equipment</span>
+                <span>{copy.equipmentHeading || "Equipment"}</span>
                 <p>
-                  {b.equipment_summary.operational} operational ·{" "}
-                  {b.equipment_summary.maintenance_required} maintenance
-                  required · {b.equipment_summary.out_of_service} out of service
+                  {b.equipment_summary.operational} {copy.operational || "operational"} ·{" "}
+                  {b.equipment_summary.maintenance_required} {copy.maintenanceRequired || "maintenance required"} ·{" "}
+                  {b.equipment_summary.out_of_service} {copy.outOfService || "out of service"}
                 </p>
-                <span>Requests</span>
+                <span>{copy.requestsHeading || "Requests"}</span>
                 <p>
-                  {b.request_summary.pending} pending ·{" "}
-                  {b.request_summary.in_progress} in progress ·{" "}
-                  {b.request_summary.resolved} resolved
+                  {b.request_summary.pending} {copy.pending || "pending"} ·{" "}
+                  {b.request_summary.in_progress} {copy.inProgress || "in progress"} ·{" "}
+                  {b.request_summary.resolved} {copy.resolved || "resolved"}
                 </p>
               </div>
               <small className="reading-time">
                 {b.latest_environment
-                  ? "Reading: " + dateTime(b.latest_environment.recorded_at)
-                  : "No environmental readings available"}
+                  ? `${copy.reading || "Reading"}: ${copy.formatDate?.(b.latest_environment.recorded_at) || dateTime(b.latest_environment.recorded_at)}`
+                  : copy.noReadings || "No environmental readings available"}
               </small>
             </>
           )}

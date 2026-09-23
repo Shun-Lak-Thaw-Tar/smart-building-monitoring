@@ -21,7 +21,7 @@ def test_history_reads_filters_order_and_query_count(auth_db, tokens, api_reques
     assert [row["history_id"] for row in rows] == [-36702, -36701]
     assert rows[0]["equipment"]["building"]["building_id"] == 3
     assert rows[0]["request"] is None and rows[0]["completed_by"]["role"] == "ADMIN"
-    assert set(rows[0]["completed_by"]) == {"user_id", "name", "role"}
+    assert set(rows[0]["completed_by"]) == {"user_id", "name", "role", "is_active"}
     for query in ("building_id=1", "equipment_id=1", "building_id=1&equipment_id=1"):
         assert len(api_request("/api/maintenance-history?" + query, headers=tokens["ADMIN"]).json()) == 1
     for query in ("building_id=999", "building_id=1&equipment_id=7"):

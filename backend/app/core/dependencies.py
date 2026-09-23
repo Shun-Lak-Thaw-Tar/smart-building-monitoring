@@ -31,7 +31,9 @@ def get_current_user(
     user = session.get(User, user_id)
     if user is None:
         raise HTTPException(401, "Invalid or expired token", headers={"WWW-Authenticate": "Bearer"})
-    # Current PostgreSQL role is authoritative, including after role changes.
+    if not user.is_active:
+        raise HTTPException(401, "Account is disabled", headers={"WWW-Authenticate": "Bearer"})
+    # Current PostgreSQL role and account status are authoritative.
     return user
 
 

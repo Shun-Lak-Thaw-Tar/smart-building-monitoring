@@ -45,9 +45,9 @@ def auth_db(monkeypatch):
         connection.execute(RequestStatusHistory.__table__.delete())
         connection.execute(MaintenanceRequest.__table__.delete())
         connection.execute(User.__table__.insert(), [
-            dict(user_id=STAFF_ID, name="__auth_staff__", role="STAFF", password_hash=hash_password(password)),
-            dict(user_id=ADMIN_ID, name="__auth_admin__", role="ADMIN", password_hash=hash_password(password)),
-            dict(user_id=OTHER_STAFF_ID, name="__auth_other_staff__", role="STAFF", password_hash=hash_password(password)),
+            dict(user_id=STAFF_ID, name="__auth_staff__", role="STAFF", password_hash=hash_password(password), is_active=True),
+            dict(user_id=ADMIN_ID, name="__auth_admin__", role="ADMIN", password_hash=hash_password(password), is_active=True),
+            dict(user_id=OTHER_STAFF_ID, name="__auth_other_staff__", role="STAFF", password_hash=hash_password(password), is_active=True),
         ])
 
         def override():
@@ -69,7 +69,8 @@ def test_valid_login(auth_db, api_request, role):
     body = response.json()
     assert body["user"]["role"] == role and body["token_type"] == "bearer"
     assert body["expires_in"] == settings.jwt_expire_minutes * 60
-    assert set(body["user"]) == {"user_id", "name", "role"}
+    assert set(body["user"]) == {"user_id", "name", "role", "is_active"}
+    assert body["user"]["is_active"] is True
     stored = connection.scalar(select(User.password_hash).where(User.name == body["user"]["name"]))
     assert stored.startswith("$argon2id$") and stored != password
     assert stored not in response.text and password not in response.text
@@ -144,7 +145,7 @@ def test_admin_lookup_and_database_role_authority(auth_db, tokens, api_request):
     response = api_request("/api/users/admins", headers=tokens["ADMIN"])
     assert response.status_code == 200
     rows = response.json()
-    assert all(set(row) == {"user_id", "name", "role"} and row["role"] == "ADMIN" for row in rows)
+    assert all(set(row) == {"user_id", "name", "role", "is_active"} and row["role"] == "ADMIN" and row["is_active"] is True for row in rows)
     connection, _ = auth_db
     expected = connection.scalars(select(User.name).where(User.role == "ADMIN").order_by(User.name, User.user_id)).all()
     assert [r["name"] for r in rows] == expected  # Respect PostgreSQL's configured collation.

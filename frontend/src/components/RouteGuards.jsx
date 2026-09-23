@@ -2,10 +2,12 @@ import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { homeFor } from "../utils/format";
 import { LoadingState } from "./UI";
+import { useLanguage } from "../context/LanguageContext";
 export function ProtectedRoute() {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
   return loading ? (
-    <LoadingState />
+    <LoadingState label={t("common.loading")} />
   ) : user ? (
     <Outlet />
   ) : (

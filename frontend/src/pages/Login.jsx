@@ -12,33 +12,35 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { errorMessage } from "../services/apiClient";
 import { homeFor } from "../utils/format";
 import { ErrorAlert, Field, LoadingState } from "../components/UI";
 export default function Login() {
+  const { t } = useLanguage();
   const { user, loading, temporarilyUnavailable, notice, login, logout, retry } = useAuth(),
     [show, setShow] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     lock = useRef(false);
-  if (loading) return <LoadingState />;
+  if (loading) return <LoadingState label={t("common.loading")} />;
   if (user) return <Navigate to={homeFor(user)} replace />;
   if (temporarilyUnavailable)
     return (
       <div className="login-page">
         <main className="login-form-side session-unavailable">
           <div className="login-card">
-            <p className="eyebrow">SESSION CHECK UNAVAILABLE</p>
-            <h2>Unable to verify your session right now.</h2>
+            <p className="eyebrow">{t("login.sessionCheckUnavailable")}</p>
+            <h2>{t("login.sessionUnavailableTitle")}</h2>
             <p className="muted">
-              Your saved session is still protected. Try again when the service is available.
+              {t("login.sessionUnavailableDescription")}
             </p>
             <div className="form-actions">
               <button className="button" onClick={retry}>
-                Retry session check
+                {t("login.retrySession")}
               </button>
               <button className="button secondary" onClick={logout}>
-                Sign out
+                {t("signOut")}
               </button>
             </div>
           </div>
@@ -50,7 +52,7 @@ export default function Login() {
     if (lock.current) return;
     const form = new FormData(e.currentTarget);
     if (!form.get("name").trim()) {
-      setError("Please enter your name.");
+      setError("login.nameRequired");
       return;
     }
     lock.current = true;
@@ -77,22 +79,21 @@ export default function Login() {
             <Building2 />
           </div>
           <div>
-            <strong>Smart Building</strong>
-            <small>MONITORING SYSTEM</small>
+          <strong>{t("shell.smartBuilding")}</strong>
+          <small>{t("login.monitoringSystem")}</small>
           </div>
         </div>
         <div className="login-story-body">
-          <span className="portal-label">SMART CAMPUS FACILITIES PORTAL</span>
+          <span className="portal-label">{t("login.portalLabel")}</span>
           <h1>
-            Smart Building
+            {t("shell.smartBuilding")}
             <br />
-            <em>Monitoring.</em>
+            <em>{t("login.monitoring")}</em>
             <br />
-            <span className="login-title-note">A more connected campus.</span>
+            <span className="login-title-note">{t("login.titleNote")}</span>
           </h1>
           <p>
-            Monitor campus buildings, manage maintenance requests and keep
-            facilities running smoothly.
+            {t("login.story")}
           </p>
           <div className="campus-illustration" aria-hidden="true">
             <University size={126} strokeWidth={1} />
@@ -107,15 +108,15 @@ export default function Login() {
           <div className="login-features">
             <span>
               <Activity size={17} aria-hidden="true" />
-              Campus Monitoring
+              {t("login.campusMonitoring")}
             </span>
             <span>
               <Wrench size={17} aria-hidden="true" />
-              Maintenance Management
+              {t("login.maintenanceManagement")}
             </span>
             <span>
               <ShieldCheck size={17} aria-hidden="true" />
-              Secure Role-Based Access
+              {t("login.secureAccess")}
             </span>
           </div>
         </div>
@@ -126,12 +127,17 @@ export default function Login() {
           <div className="login-lock">
             <LockKeyhole size={24} />
           </div>
-          <p className="eyebrow">WELCOME TO YOUR WORKSPACE</p>
-          <h2>Sign in</h2>
-          <p className="muted">Access your campus facilities portal.</p>
-          <ErrorAlert message={error || notice} />
-          <form onSubmit={submit}>
-            <Field label="Name" required>
+          <p className="eyebrow">{t("login.welcome")}</p>
+          <h2>{t("login.signIn")}</h2>
+          <p className="muted">{t("login.accessPortal")}</p>
+          <ErrorAlert message={t(error || notice)} />
+          <form
+            onSubmit={submit}
+            onInvalidCapture={(e) => e.target.setCustomValidity(t("login.requiredValidation"))}
+            onInputCapture={(e) => e.target.setCustomValidity("")}
+            onChangeCapture={(e) => e.target.setCustomValidity("")}
+          >
+            <Field label={t("login.name")} required>
               {(id) => (
                 <input
                   id={id}
@@ -139,11 +145,11 @@ export default function Login() {
                   autoComplete="username"
                   required
                   maxLength={100}
-                  placeholder="Enter your name"
+                  placeholder={t("login.namePlaceholder")}
                 />
               )}
             </Field>
-            <Field label="Password" required>
+            <Field label={t("login.password")} required>
               {(id) => (
                 <div className="password-control">
                   <input
@@ -152,12 +158,12 @@ export default function Login() {
                     type={show ? "text" : "password"}
                     autoComplete="current-password"
                     required
-                    placeholder="Enter your password"
+                    placeholder={t("login.passwordPlaceholder")}
                   />
                   <button
                     type="button"
                     className="icon-button"
-                    aria-label={show ? "Hide password" : "Show password"}
+                    aria-label={t(show ? "login.hidePassword" : "login.showPassword")}
                     onClick={() => setShow(!show)}
                   >
                     {show ? <EyeOff size={20} /> : <Eye size={20} />}
@@ -165,24 +171,24 @@ export default function Login() {
                 </div>
               )}
             </Field>
-            <Field label="Sign in as">
+            <Field label={t("login.signInAs")}>
               {(id) => (
                 <select id={id} name="role">
-                  <option value="STAFF">Office Staff</option>
-                  <option value="ADMIN">Administrator</option>
+                  <option value="STAFF">{t("STAFF")}</option>
+                  <option value="ADMIN">{t("ADMIN")}</option>
                 </select>
               )}
             </Field>
             <button className="button login-submit" disabled={busy}>
-              {busy ? "Signing in…" : "Sign in"}
+              {busy ? t("login.signingIn") : t("login.signIn")}
               <ArrowRight size={19} />
             </button>
           </form>
           <p className="login-help">
-            Use the account provided by your campus administrator.
+            {t("login.help")}
           </p>
         </div>
-        <small className="login-footer">Smart Building Monitoring System</small>
+        <small className="login-footer">{t("shell.footerTitle")}</small>
       </main>
     </div>
   );

@@ -29,23 +29,23 @@ const tooltipTheme = {
   itemStyle: { fontSize: 12, color: "var(--text-primary)" },
   wrapperStyle: { outline: "none" },
 };
-export function RequestCharts({ requests }) {
+export function RequestCharts({ requests, copy = {} }) {
   const reduced = useReducedMotion(),
     statuses = requestStatuses.map((v, i) => ({
-      name: labels[v],
+      name: copy.label?.(v) || labels[v],
       value: requests.filter((r) => r.status === v).length,
       color: colors[i],
     })),
     priority = priorities.map((v) => ({
-      name: labels[v],
+      name: copy.label?.(v) || labels[v],
       value: requests.filter((r) => r.priority === v).length,
     }));
   return (
     <div className="charts-grid">
       <section className="panel">
         <div className="panel-heading">
-          <h2>Requests by status</h2>
-          <span className="count-label">All requests</span>
+          <h2>{copy.byStatus || "Requests by status"}</h2>
+          <span className="count-label">{copy.allRequests || "All requests"}</span>
         </div>
         {requests.length ? (
           <>
@@ -77,7 +77,7 @@ export function RequestCharts({ requests }) {
               </ResponsiveContainer>
               <div className="donut-total">
                 <strong>{requests.length}</strong>
-                <span>REQUESTS</span>
+                <span>{copy.requests || "REQUESTS"}</span>
               </div>
             </div>
             <div className="chart-legend">
@@ -91,13 +91,13 @@ export function RequestCharts({ requests }) {
             </div>
           </>
         ) : (
-          <EmptyState title="No requests to chart yet." />
+          <EmptyState title={copy.empty || "No requests to chart yet."} />
         )}
       </section>
       <section className="panel">
         <div className="panel-heading">
-          <h2>Requests by priority</h2>
-          <span className="count-label">All requests</span>
+          <h2>{copy.byPriority || "Requests by priority"}</h2>
+          <span className="count-label">{copy.allRequests || "All requests"}</span>
         </div>
         {requests.length ? (
           <div
@@ -129,7 +129,7 @@ export function RequestCharts({ requests }) {
                 />
                 <Bar
                   dataKey="value"
-                  name="Requests"
+                  name={copy.requestSeries || "Requests"}
                   radius={[5, 5, 0, 0]}
                   maxBarSize={42}
                   isAnimationActive={!reduced}
@@ -147,34 +147,34 @@ export function RequestCharts({ requests }) {
             </ResponsiveContainer>
           </div>
         ) : (
-          <EmptyState title="No requests to chart yet." />
+          <EmptyState title={copy.empty || "No requests to chart yet."} />
         )}
       </section>
     </div>
   );
 }
-export function EnvironmentCharts({ readings }) {
+export function EnvironmentCharts({ readings, copy = {} }) {
   const reduced = useReducedMotion(),
     data = [...readings].reverse().map((r) => ({
       ...r,
-      time: new Intl.DateTimeFormat(undefined, {
+      time: copy.formatTime?.(r.recorded_at) || new Intl.DateTimeFormat(undefined, {
         hour: "numeric",
         minute: "2-digit",
       }).format(new Date(r.recorded_at)),
     }));
   if (!data.length)
     return (
-      <EmptyState title="No environmental readings are available for this building." />
+      <EmptyState title={copy.empty || "No environmental readings are available for this building."} />
     );
   const tooltipLabel = (_, payload) =>
-    payload?.length ? dateTime(payload[0].payload.recorded_at) : "";
+    payload?.length ? copy.formatDate?.(payload[0].payload.recorded_at) || dateTime(payload[0].payload.recorded_at) : "";
   return (
     <div className="environment-charts">
-      <h3>Temperature & humidity</h3>
+      <h3>{copy.temperatureHumidity || "Temperature & humidity"}</h3>
       <div
         className="trend-chart"
         role="img"
-        aria-label="Temperature and humidity readings over time. The chart legend identifies both lines."
+        aria-label={copy.temperatureHumidityAria || "Temperature and humidity readings over time. The chart legend identifies both lines."}
       >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -205,7 +205,7 @@ export function EnvironmentCharts({ readings }) {
             <Line
               yAxisId="temp"
               dataKey="temperature"
-              name="Temperature (°C)"
+              name={copy.temperatureSeries || "Temperature (°C)"}
               stroke="var(--chart-one)"
               strokeWidth={2}
               isAnimationActive={!reduced}
@@ -214,7 +214,7 @@ export function EnvironmentCharts({ readings }) {
             <Line
               yAxisId="humidity"
               dataKey="humidity"
-              name="Humidity (%)"
+              name={copy.humiditySeries || "Humidity (%)"}
               stroke="var(--chart-two)"
               strokeWidth={2}
               isAnimationActive={!reduced}
@@ -223,11 +223,11 @@ export function EnvironmentCharts({ readings }) {
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <h3>Energy consumption</h3>
+      <h3>{copy.energyConsumption || "Energy consumption"}</h3>
       <div
         className="trend-chart"
         role="img"
-        aria-label="Energy consumption readings over time. The chart legend identifies the line."
+        aria-label={copy.energyAria || "Energy consumption readings over time. The chart legend identifies the line."}
       >
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
@@ -247,7 +247,7 @@ export function EnvironmentCharts({ readings }) {
             />
             <Line
               dataKey="energy_consumption"
-              name="Energy (kWh)"
+              name={copy.energySeries || "Energy (kWh)"}
               stroke="var(--chart-one)"
               strokeWidth={2}
               isAnimationActive={!reduced}

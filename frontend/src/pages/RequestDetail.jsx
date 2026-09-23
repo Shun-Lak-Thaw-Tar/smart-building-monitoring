@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import { useLanguage } from "../context/LanguageContext";
 import { useToast } from "../context/ToastContext";
 import { useResource } from "../hooks/useResource";
 import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
@@ -13,13 +14,13 @@ import {
   PageHeader,
   ResourceState,
   Field,
-  Options,
   SubmitButton,
   ErrorAlert,
   EmptyState,
 } from "../components/UI";
-import { dateTime, requestStatuses } from "../utils/format";
+import { requestStatuses } from "../utils/format";
 export default function RequestDetail() {
+  const { t, language } = useLanguage();
   const { id } = useParams(),
     { user } = useAuth(),
     admin = user.role === "ADMIN";
@@ -32,8 +33,15 @@ export default function RequestDetail() {
       ]),
     id,
   );
-  useRefreshOnFocus(resource.refresh);
+  const namespace = admin ? "adminRequestDetail" : "requestDetail";
+  useRefreshOnFocus(resource.refresh, t(`${namespace}.refreshError`));
   const [request, history, admins] = resource.data || [null, [], []];
+  const copy = (key) => t(`${namespace}.${key}`);
+  const displayDate = (value) => value
+      ? new Intl.DateTimeFormat(language === "my" ? "my-MM" : undefined, {
+          day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit",
+        }).format(new Date(value))
+      : copy("dateUnavailable");
   return (
     <>
       <Link
@@ -41,11 +49,12 @@ export default function RequestDetail() {
         to={admin ? "/admin/requests" : "/staff/requests"}
       >
         <ArrowLeft size={16} />
-        Back to requests
+        {copy("back")}
       </Link>
       <PageHeader
-        title={`Request #${id}`}
-        description="Maintenance request details and progress."
+        title={`${copy("request")} #${id}`}
+        description={copy("description")}
+        eyebrow={copy("eyebrow")}
       >
         {request && (
           <>
@@ -54,29 +63,33 @@ export default function RequestDetail() {
           </>
         )}
       </PageHeader>
-      <ResourceState resource={resource}>
+      <ResourceState resource={resource} copy={{
+        loading: copy("loading"),
+        retry: copy("retry"),
+        error: t,
+      }}>
         {request && (
           <div className="detail-layout">
             <div>
               <section className="panel">
-                <h2>Request details</h2>
+                <h2>{copy("details")}</h2>
                 <dl className="detail-grid">
                   {[
-                    ["Building", request.building.building_name],
-                    ["Room / Location", request.room_location],
+                    [copy("building"), request.building.building_name],
+                    [copy("room"), request.room_location],
                     [
-                      "Equipment",
+                      copy("equipment"),
                       request.equipment?.equipment_name ||
-                        "General building issue",
+                        copy("generalIssue"),
                     ],
-                    ["Fault Category", request.fault_category],
-                    ["Submitted By", request.submitted_by.name],
+                    [copy("category"), t(request.fault_category)],
+                    [copy("submittedBy"), request.submitted_by.name],
                     [
-                      "Assigned Administrator",
-                      request.assigned_to?.name || "Not assigned yet",
+                      copy("assignedAdministrator"),
+                      request.assigned_to?.name || copy("unassigned"),
                     ],
-                    ["Created", dateTime(request.created_at)],
-                    ["Updated", dateTime(request.updated_at)],
+                    [copy("created"), displayDate(request.created_at)],
+                    [copy("updated"), displayDate(request.updated_at)],
                   ].map(([label, value]) => (
                     <div key={label}>
                       <dt>{label}</dt>
@@ -85,7 +98,7 @@ export default function RequestDetail() {
                   ))}
                 </dl>
                 <div className="description">
-                  <h3>Description</h3>
+                  <h3>{copy("descriptionLabel")}</h3>
                   <p>{request.description}</p>
                 </div>
               </section>
@@ -102,8 +115,8 @@ export default function RequestDetail() {
             </div>
             <section className="panel timeline-panel">
               <div className="panel-heading">
-                <h2>Status timeline</h2>
-                <span className="count-label">{history.length} events</span>
+                <h2>{copy("timeline")}</h2>
+                <span className="count-label">{history.length} {copy(history.length === 1 ? "oneEvent" : "events")}</span>
               </div>
               {history.length ? (
                 <ol className="timeline">
@@ -117,17 +130,17 @@ export default function RequestDetail() {
                       {h.note ? (
                         <p>{h.note}</p>
                       ) : h.previous_status === null ? (
-                        <p>Request submitted</p>
+                        <p>{copy("submitted")}</p>
                       ) : null}
                       <strong>{h.changed_by.name}</strong>
                       <time dateTime={h.changed_at}>
-                        {dateTime(h.changed_at)}
+                        {displayDate(h.changed_at)}
                       </time>
                     </li>
                   ))}
                 </ol>
               ) : (
-                <EmptyState title="No status events yet." />
+                <EmptyState title={copy("emptyTimeline")} />
               )}
             </section>
           </div>
@@ -137,6 +150,7 @@ export default function RequestDetail() {
   );
 }
 function Management({ request, admins, refresh }) {
+  const { t } = useLanguage();
   const [assigned, setAssigned] = useState(request.assigned_to?.user_id || ""),
     [status, setStatus] = useState(request.status),
     [note, setNote] = useState(""),
@@ -160,8 +174,8 @@ function Management({ request, admins, refresh }) {
         });
       toast(
         kind === "assign"
-          ? "Request assignment updated."
-          : "Request status updated.",
+          ? t("adminRequestDetail.assignmentSuccess")
+          : t("adminRequestDetail.statusSuccess"),
       );
       await refresh();
     } catch (e) {
@@ -174,13 +188,17 @@ function Management({ request, admins, refresh }) {
   return (
     <section className="panel section-space">
       <div className="panel-heading">
-        <h2>Manage request</h2>
-        <span className="count-label">Administrator</span>
+        <h2>{t("adminRequestDetail.manage")}</h2>
+        <span className="count-label">{t("adminRequestDetail.administrator")}</span>
       </div>
-      <ErrorAlert message={error} />
+      <ErrorAlert message={t(error)} />
       <div className="management-grid">
-        <form onSubmit={(e) => save(e, "assign")}>
-          <Field label="Assign administrator">
+        <form
+          onSubmit={(e) => save(e, "assign")}
+          onInvalidCapture={(e) => e.target.setCustomValidity(t("adminRequestDetail.requiredValidation"))}
+          onChangeCapture={(e) => e.target.setCustomValidity("")}
+        >
+          <Field label={t("adminRequestDetail.assignAdministrator")}>
             {(id) => (
               <select
                 id={id}
@@ -188,7 +206,7 @@ function Management({ request, admins, refresh }) {
                 value={assigned}
                 onChange={(e) => setAssigned(e.target.value)}
               >
-                <option value="">Select administrator</option>
+                <option value="">{t("adminRequestDetail.selectAdministrator")}</option>
                 {admins.map((a) => (
                   <option key={a.user_id} value={a.user_id}>
                     {a.name}
@@ -199,28 +217,29 @@ function Management({ request, admins, refresh }) {
           </Field>
           <SubmitButton
             busy={busy === "assign"}
+            busyLabel={t("adminRequestDetail.saving")}
             disabled={
               Boolean(busy) ||
               !assigned ||
               Number(assigned) === request.assigned_to?.user_id
             }
           >
-            Update assignment
+            {t("adminRequestDetail.updateAssignment")}
           </SubmitButton>
         </form>
         <form onSubmit={(e) => save(e, "status")}>
-          <Field label="Request Status">
+          <Field label={t("adminRequestDetail.requestStatus")}>
             {(id) => (
               <select
                 id={id}
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
-                <Options values={requestStatuses} />
+                {requestStatuses.map((value) => <option key={value} value={value}>{t(value)}</option>)}
               </select>
             )}
           </Field>
-          <Field label="Optional Note">
+          <Field label={t("adminRequestDetail.optionalNote")}>
             {(id) => (
               <textarea
                 id={id}
@@ -228,15 +247,16 @@ function Management({ request, admins, refresh }) {
                 onChange={(e) => setNote(e.target.value)}
                 maxLength={500}
                 rows={3}
-                placeholder="Add a progress update…"
+                placeholder={t("adminRequestDetail.notePlaceholder")}
               />
             )}
           </Field>
           <SubmitButton
             busy={busy === "status"}
+            busyLabel={t("adminRequestDetail.saving")}
             disabled={Boolean(busy) || status === request.status}
           >
-            Update status
+            {t("adminRequestDetail.updateStatus")}
           </SubmitButton>
         </form>
       </div>

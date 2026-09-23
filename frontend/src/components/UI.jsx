@@ -1,11 +1,13 @@
 import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from "react";
 import { AlertCircle, Inbox, LoaderCircle, X, Circle } from "lucide-react";
 import { labels } from "../utils/format";
+import { useLanguage } from "../context/LanguageContext";
 export function Badge({ value }) {
+  const { t } = useLanguage();
   return (
     <span className={`badge badge-${value?.toLowerCase()}`}>
       <Circle size={7} fill="currentColor" aria-hidden="true" />
-      {labels[value] || value}
+      {t(value) || labels[value] || value}
     </span>
   );
 }
@@ -26,10 +28,10 @@ export function PageHeader({
     </header>
   );
 }
-export function LoadingState() {
+export function LoadingState({ label = "Loading…" }) {
   return (
     <div role="status" className="loading">
-      <span className="sr-only">Loading…</span>
+      <span className="sr-only">{label}</span>
       <div className="skeleton-grid">
         {[1, 2, 3, 4].map((i) => (
           <div className="skeleton" key={i} />
@@ -39,14 +41,14 @@ export function LoadingState() {
     </div>
   );
 }
-export function ErrorAlert({ message, onRetry }) {
+export function ErrorAlert({ message, onRetry, retryLabel = "Try again" }) {
   return message ? (
     <div className="error-alert" role="alert">
       <AlertCircle size={20} />
       <span>{message}</span>
       {onRetry && (
         <button className="button secondary" onClick={onRetry}>
-          Try again
+          {retryLabel}
         </button>
       )}
     </div>
@@ -66,13 +68,19 @@ export function EmptyState({
     </div>
   );
 }
-export function ResourceState({ resource, children }) {
-  if (resource.loading) return <LoadingState />;
+export function ResourceState({ resource, children, copy }) {
+  if (resource.loading) return <LoadingState label={copy?.loading} />;
   if (resource.error)
-    return <ErrorAlert message={resource.error} onRetry={resource.refresh} />;
+    return (
+      <ErrorAlert
+        message={copy?.error?.(resource.error) || resource.error}
+        onRetry={resource.refresh}
+        retryLabel={copy?.retry}
+      />
+    );
   return children;
 }
-export function SubmitButton({ busy, disabled, children, ...props }) {
+export function SubmitButton({ busy, disabled, children, busyLabel = "Saving…", ...props }) {
   return (
     <button
       type="submit"
@@ -81,7 +89,7 @@ export function SubmitButton({ busy, disabled, children, ...props }) {
       {...props}
     >
       {busy && <LoaderCircle size={18} className="spin" aria-hidden="true" />}
-      {busy ? "Saving…" : children}
+      {busy ? busyLabel : children}
     </button>
   );
 }
@@ -124,7 +132,7 @@ export function StatCard({ title, value, icon: Icon, note }) {
     </div>
   );
 }
-export function Modal({ title, children, onClose, busy = false }) {
+export function Modal({ title, children, onClose, busy = false, closeLabel = "Close dialog" }) {
   const ref = useRef(null),
     titleId = useId(),
     timer = useRef(null),
@@ -166,7 +174,7 @@ export function Modal({ title, children, onClose, busy = false }) {
         <h2 id={titleId}>{title}</h2>
         <button
           className="icon-button"
-          aria-label="Close dialog"
+          aria-label={closeLabel}
           disabled={busy}
           onClick={close}
         >

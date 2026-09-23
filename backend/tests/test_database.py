@@ -99,8 +99,8 @@ def test_foreign_keys_indexes_and_checks(connection):
 def workflow(connection):
     # Negative IDs avoid consuming application identity sequences for test fixtures.
     connection.execute(User.__table__.insert(), [
-        dict(user_id=-33301, name="__schema_test_staff__", password_hash="!unusable-test-value", role="STAFF"),
-        dict(user_id=-33302, name="__schema_test_admin__", password_hash="!unusable-test-value", role="ADMIN"),
+        dict(user_id=-33301, name="__schema_test_staff__", password_hash="!unusable-test-value", role="STAFF", is_active=True),
+        dict(user_id=-33302, name="__schema_test_admin__", password_hash="!unusable-test-value", role="ADMIN", is_active=True),
     ])
     connection.execute(Building.__table__.insert().values(building_id=-33301, building_name="__schema_test_building__"))
     connection.execute(Equipment.__table__.insert().values(

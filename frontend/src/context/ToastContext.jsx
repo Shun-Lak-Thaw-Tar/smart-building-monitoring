@@ -1,8 +1,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
+import { useLanguage } from "./LanguageContext";
 const Context = createContext(null);
 export const useToast = () => useContext(Context);
 export function ToastProvider({ children }) {
+  const { t } = useLanguage();
   const [messages, setMessages] = useState([]);
   const timers = useRef(new Set());
   useEffect(() => () => timers.current.forEach(clearTimeout), []);
@@ -27,7 +29,7 @@ export function ToastProvider({ children }) {
             <span>{i.text}</span>
             <button
               className="icon-button"
-              aria-label="Dismiss message"
+              aria-label={t("common.dismissMessage")}
               onClick={() => remove(i.id)}
             >
               <X size={18} />

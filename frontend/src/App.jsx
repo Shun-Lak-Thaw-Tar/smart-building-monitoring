@@ -2,9 +2,12 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Link, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { LanguageProvider } from "./context/LanguageContext";
 import { ProtectedRoute, RoleRoute } from "./components/RouteGuards";
 import { EmptyState, LoadingState } from "./components/UI";
 import { homeFor } from "./utils/format";
+import { useLanguage } from "./context/LanguageContext";
 import AppShell from "./layouts/AppShell";
 import Login from "./pages/Login";
 import StaffDashboard from "./pages/StaffDashboard";
@@ -17,22 +20,28 @@ const Equipment = lazy(() => import("./pages/Equipment"));
 const Maintenance = lazy(() => import("./pages/Maintenance"));
 const StaffAccounts = lazy(() => import("./pages/StaffAccounts"));
 function Home() {
+  const { t } = useLanguage();
   const { user, loading } = useAuth();
   return loading ? (
-    <LoadingState />
+    <LoadingState label={t("common.loading")} />
   ) : (
     <Navigate to={user ? homeFor(user) : "/login"} replace />
   );
 }
 export default function App() {
+  return <LanguageProvider><Application /></LanguageProvider>;
+}
+function Application() {
+  const { t } = useLanguage();
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <AuthProvider>
         <ToastProvider>
           <a href="#main-content" className="skip-link">
-            Skip to content
+            {t("common.skipToContent")}
           </a>
-          <Suspense fallback={<LoadingState />}>
+          <Suspense fallback={<LoadingState label={t("common.loading")} />}>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -71,11 +80,11 @@ export default function App() {
                 element={
                   <div className="not-found">
                     <EmptyState
-                      title="Page not found"
-                      description="This page may have moved, or the address may be incorrect."
+                      title={t("common.pageNotFound")}
+                      description={t("common.pageNotFoundDescription")}
                     >
                       <Link className="button" to="/">
-                        Return to your dashboard
+                        {t("common.returnDashboard")}
                       </Link>
                     </EmptyState>
                   </div>
@@ -86,5 +95,6 @@ export default function App() {
         </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }

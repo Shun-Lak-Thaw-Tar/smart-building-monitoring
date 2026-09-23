@@ -34,11 +34,11 @@ export function AuthProvider({ children }) {
           sessionStorage.removeItem(TOKEN_KEY);
           setToken(null);
           setUser(null);
-          setNotice("Your session has expired. Please sign in again.");
+          setNotice("auth.sessionExpired");
         } else {
           setUser(null);
           setTemporarilyUnavailable(true);
-          setNotice("Unable to verify your session right now.");
+          setNotice("login.sessionUnavailableTitle");
         }
       })
       .finally(() => {
@@ -55,7 +55,7 @@ export function AuthProvider({ children }) {
       setToken(null);
       setLoading(false);
       setTemporarilyUnavailable(false);
-      setNotice("Your session has expired. Please sign in again.");
+      setNotice("auth.sessionExpired");
     };
     window.addEventListener("session-expired", expire);
     return () => {

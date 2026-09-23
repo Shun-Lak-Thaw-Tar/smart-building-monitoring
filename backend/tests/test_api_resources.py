@@ -22,7 +22,7 @@ def api_db(api_headers, monkeypatch):
         transaction = connection.begin()
         monkeypatch.setattr(settings, "jwt_secret", secrets.token_urlsafe(48))
         user = User(user_id=-34590, name="__read_api_staff__", role="STAFF", password_hash="!test-only-unusable")
-        connection.execute(User.__table__.insert().values(user_id=user.user_id, name=user.name, role=user.role, password_hash=user.password_hash))
+        connection.execute(User.__table__.insert().values(user_id=user.user_id, name=user.name, role=user.role, password_hash=user.password_hash, is_active=True))
         api_headers["Authorization"] = "Bearer " + create_access_token(user)
 
         def session_override():

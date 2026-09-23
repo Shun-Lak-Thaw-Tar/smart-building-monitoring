@@ -12,6 +12,7 @@ import { requestService } from "../services/requestService";
 import { monitoringService } from "../services/monitoringService";
 import { equipmentService } from "../services/equipmentService";
 import { userService } from "../services/userService";
+import { useLanguage } from "../context/LanguageContext";
 import {
   PageHeader,
   ResourceState,
@@ -22,6 +23,7 @@ import {
 import { RequestCharts } from "../components/Charts";
 import BuildingCards from "../components/BuildingCards";
 export default function AdminDashboard() {
+  const { t } = useLanguage();
   const navigate = useNavigate(),
     resource = useResource(() =>
       Promise.all([
@@ -31,7 +33,7 @@ export default function AdminDashboard() {
         userService.staff(),
       ]),
     );
-  useRefreshOnFocus(resource.refresh);
+  useRefreshOnFocus(resource.refresh, t("adminDashboard.refreshError"));
   const [requests, buildings, equipment, staff] = resource.data || [
       [],
       [],
@@ -43,50 +45,63 @@ export default function AdminDashboard() {
   return (
     <>
       <PageHeader
-        title="Facilities overview"
-        description="A clear view of campus operations and what needs your attention."
+        eyebrow={t("adminDashboard.eyebrow")}
+        title={t("adminDashboard.title")}
+        description={t("adminDashboard.description")}
       >
         <Link className="button" to="/admin/requests">
-          Manage requests
+          {t("adminDashboard.manageRequests")}
           <ArrowUpRight size={17} />
         </Link>
       </PageHeader>
-      <ResourceState resource={resource}>
+      <ResourceState resource={resource} copy={{
+        loading: t("adminDashboard.loading"),
+        retry: t("adminDashboard.retry"),
+        error: t,
+      }}>
         <div className="stats-grid">
           {[
             [
-              "OPEN REQUESTS",
+              t("adminDashboard.openRequests"),
               open.length,
               ClipboardList,
-              "Pending or in progress",
+              t("adminDashboard.openRequestsNote"),
             ],
             [
-              "HIGH PRIORITY",
+              t("adminDashboard.highPriority"),
               high.length,
               TriangleAlert,
-              "Unresolved high priority",
+              t("adminDashboard.highPriorityNote"),
             ],
             [
-              "EQUIPMENT ATTENTION",
+              t("adminDashboard.equipmentAttention"),
               equipment.filter((e) => e.status !== "OPERATIONAL").length,
               MonitorCog,
-              "Maintenance or out of service",
+              t("adminDashboard.equipmentAttentionNote"),
             ],
-            ["STAFF ACCOUNTS", staff.length, Users, "Office Staff with access"],
+            [t("adminDashboard.staffAccounts"), staff.length, Users, t("adminDashboard.staffAccountsNote")],
           ].map(([title, value, icon, note]) => (
             <StatCard key={title} {...{ title, value, icon, note }} />
           ))}
         </div>
-        <RequestCharts requests={requests} />
+        <RequestCharts requests={requests} copy={{
+          byStatus: t("adminDashboard.byStatus"),
+          byPriority: t("adminDashboard.byPriority"),
+          allRequests: t("adminDashboard.allRequests"),
+          requests: t("adminDashboard.requestsUpper"),
+          requestSeries: t("adminDashboard.requests"),
+          empty: t("adminDashboard.noChartData"),
+          label: t,
+        }} />
         <section className="panel section-space">
           <div className="panel-heading">
             <div>
-              <h2>Needs attention</h2>
+              <h2>{t("adminDashboard.needsAttention")}</h2>
               <p className="muted small-text">
-                Unresolved high-priority requests
+                {t("adminDashboard.needsAttentionDescription")}
               </p>
             </div>
-            <Link to="/admin/requests?priority=HIGH">View requests →</Link>
+            <Link to="/admin/requests?priority=HIGH">{t("adminDashboard.viewRequests")} →</Link>
           </div>
           {high.length ? (
             <div className="attention-list">
@@ -101,7 +116,7 @@ export default function AdminDashboard() {
                   </span>
                   <div>
                     <strong>
-                      {r.fault_category}
+                      {t(r.fault_category)}
                       <span> · #{r.request_id}</span>
                     </strong>
                     <p>
@@ -109,8 +124,8 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                   <div className="attention-assignee">
-                    <small>Assigned to</small>
-                    <span>{r.assigned_to?.name || "Not assigned yet"}</span>
+                    <small>{t("adminDashboard.assignedTo")}</small>
+                    <span>{r.assigned_to?.name || t("adminDashboard.unassigned")}</span>
                   </div>
                   <Badge value={r.priority} />
                   <Badge value={r.status} />
@@ -119,17 +134,22 @@ export default function AdminDashboard() {
               ))}
             </div>
           ) : (
-            <EmptyState title="No high-priority requests currently require attention." />
+            <EmptyState title={t("adminDashboard.noAttentionRequests")} />
           )}
         </section>
         <section className="section-space">
           <div className="panel-heading">
-            <h2>Campus Building Status</h2>
-            <Link to="/admin/monitoring">View monitoring →</Link>
+            <h2>{t("adminDashboard.buildingStatus")}</h2>
+            <Link to="/admin/monitoring">{t("adminDashboard.viewMonitoring")} →</Link>
           </div>
           <BuildingCards
             buildings={buildings}
             compact
+            copy={{
+              noBuildings: t("adminDashboard.noBuildings"),
+              equipment: t("adminDashboard.buildingEquipment"),
+              openRequests: t("adminDashboard.buildingOpenRequests"),
+            }}
             onSelect={() => navigate("/admin/monitoring")}
           />
         </section>

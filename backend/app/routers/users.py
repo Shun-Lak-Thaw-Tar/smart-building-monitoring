@@ -10,7 +10,7 @@ from app.core.security import hash_password
 from app.db.session import get_session
 from app.models import User
 from app.schemas.auth import UserBrief
-from app.schemas.users import StaffAccountCreate
+from app.schemas.users import StaffAccountCreate, StaffAccountStatusUpdate
 
 router = APIRouter(prefix="/api/users", tags=["Users"], dependencies=[Depends(require_admin)],
                    responses={401: {"description": "Authentication required"},
@@ -51,3 +51,20 @@ def create_staff(data: StaffAccountCreate, session: Annotated[Session, Depends(g
     except Exception:
         session.rollback()
         raise
+
+
+@router.patch("/staff/{user_id}/status", response_model=UserBrief, summary="Enable or disable an Office Staff account",
+              responses={404: {"description": "Staff account not found"}})
+def update_staff_status(
+    user_id: int,
+    data: StaffAccountStatusUpdate,
+    session: Annotated[Session, Depends(get_session)],
+):
+    user = session.get(User, user_id)
+    if user is None or user.role != "STAFF":
+        raise HTTPException(404, "Staff account not found")
+    user.is_active = data.is_active
+    session.flush()
+    response = UserBrief.model_validate(user)
+    session.commit()
+    return response

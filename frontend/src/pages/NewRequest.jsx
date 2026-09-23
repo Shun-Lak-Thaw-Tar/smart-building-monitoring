@@ -4,6 +4,7 @@ import { Info } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useToast } from "../context/ToastContext";
+import { useLanguage } from "../context/LanguageContext";
 import { buildingService } from "../services/buildingService";
 import { equipmentService } from "../services/equipmentService";
 import { requestService } from "../services/requestService";
@@ -12,19 +13,20 @@ import {
   PageHeader,
   ResourceState,
   Field,
-  Options,
   SubmitButton,
   ErrorAlert,
 } from "../components/UI";
 import { priorities } from "../utils/format";
 export default function NewRequest() {
+  const { language, t } = useLanguage();
   const navigate = useNavigate(),
     toast = useToast(),
     [building, setBuilding] = useState(""),
     [equipment, setEquipment] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    lock = useRef(false);
+    lock = useRef(false),
+    formRef = useRef(null);
   const buildings = useResource(buildingService.list),
     items = useResource(
       () =>
@@ -33,8 +35,9 @@ export default function NewRequest() {
           : Promise.resolve([]),
       building,
     );
-  useRefreshOnFocus(() =>
-    building ? items.refresh({ background: true }) : Promise.resolve(true),
+  useRefreshOnFocus(
+    () => building ? items.refresh({ background: true }) : Promise.resolve(true),
+    t("newRequest.refreshError"),
   );
   useEffect(() => {
     if (
@@ -44,13 +47,18 @@ export default function NewRequest() {
     )
       setEquipment("");
   }, [equipment, items.data, items.loading]);
+  useEffect(() => {
+    formRef.current?.querySelectorAll("input, select, textarea").forEach((field) => {
+      field.setCustomValidity("");
+    });
+  }, [language]);
   async function submit(e) {
     e.preventDefault();
     if (lock.current) return;
     const data = Object.fromEntries(new FormData(e.currentTarget));
     for (const key of ["room_location", "description"])
       if (!data[key].trim()) {
-        setError("Location and description must not be blank.");
+        setError("newRequest.blankFields");
         return;
       }
     lock.current = true;
@@ -62,7 +70,7 @@ export default function NewRequest() {
         building_id: Number(building),
         equipment_id: equipment ? Number(equipment) : null,
       });
-      toast("Maintenance request submitted successfully.");
+      toast(t("newRequest.success"));
       navigate("/staff/requests/" + result.request_id);
     } catch (e) {
       setError(errorMessage(e));
@@ -74,20 +82,31 @@ export default function NewRequest() {
   return (
     <>
       <PageHeader
-        title="New maintenance request"
-        description="Tell us what needs attention. Your campus team will take it from here."
+        eyebrow={t("newRequest.eyebrow")}
+        title={t("newRequest.title")}
+        description={t("newRequest.description")}
       />
-      <ResourceState resource={buildings}>
+      <ResourceState resource={buildings} copy={{
+        loading: t("newRequest.loading"),
+        error: (message) => t(message),
+        retry: t("newRequest.retry"),
+      }}>
         <div className="form-layout">
           <section className="panel">
             <div className="panel-heading">
-              <h2>Request details</h2>
-              <span className="muted small-text">* Required fields</span>
+              <h2>{t("newRequest.details")}</h2>
+              <span className="muted small-text">{t("newRequest.requiredFields")}</span>
             </div>
-            <ErrorAlert message={error} />
-            <form onSubmit={submit}>
+            <ErrorAlert message={t(error)} />
+            <form
+              ref={formRef}
+              onSubmit={submit}
+              onInvalidCapture={(e) => e.target.setCustomValidity(t("newRequest.requiredValidation"))}
+              onInputCapture={(e) => e.target.setCustomValidity("")}
+              onChangeCapture={(e) => e.target.setCustomValidity("")}
+            >
               <div className="form-grid">
-                <Field label="Building" required>
+                <Field label={t("newRequest.building")} required>
                   {(id) => (
                     <select
                       id={id}
@@ -98,7 +117,7 @@ export default function NewRequest() {
                         setEquipment("");
                       }}
                     >
-                      <option value="">Select a building</option>
+                      <option value="">{t("newRequest.selectBuilding")}</option>
                       {buildings.data?.map((b) => (
                         <option key={b.building_id} value={b.building_id}>
                           {b.building_name}
@@ -108,8 +127,8 @@ export default function NewRequest() {
                   )}
                 </Field>
                 <Field
-                  label="Equipment"
-                  hint="Leave unselected for a general building issue."
+                  label={t("newRequest.equipment")}
+                  hint={t("newRequest.equipmentHint")}
                 >
                   {(id) => (
                     <select
@@ -122,8 +141,8 @@ export default function NewRequest() {
                     >
                       <option value="">
                         {items.loading && building
-                          ? "Loading equipment…"
-                          : "No specific equipment / General building issue"}
+                          ? t("newRequest.loadingEquipment")
+                          : t("newRequest.generalIssue")}
                       </option>
                       {!items.loading &&
                         !items.error &&
@@ -135,18 +154,18 @@ export default function NewRequest() {
                     </select>
                   )}
                 </Field>
-                <Field label="Room / Location" required>
+                <Field label={t("newRequest.room")} required>
                   {(id) => (
                     <input
                       id={id}
                       name="room_location"
                       required
                       maxLength={150}
-                      placeholder="e.g. Room 205, second floor"
+                      placeholder={t("newRequest.roomPlaceholder")}
                     />
                   )}
                 </Field>
-                <Field label="Fault Category" required>
+                <Field label={t("newRequest.category")} required>
                   {(id) => (
                     <select
                       id={id}
@@ -154,7 +173,7 @@ export default function NewRequest() {
                       required
                       defaultValue=""
                     >
-                      <option value="">Select a category</option>
+                      <option value="">{t("newRequest.selectCategory")}</option>
                       {[
                         "Electrical",
                         "Air Conditioning",
@@ -163,16 +182,16 @@ export default function NewRequest() {
                         "Equipment",
                         "Other",
                       ].map((v) => (
-                        <option key={v}>{v}</option>
+                        <option key={v} value={v}>{t(v)}</option>
                       ))}
                     </select>
                   )}
                 </Field>
                 <div className="span-all">
                   <Field
-                    label="Description"
+                    label={t("newRequest.descriptionLabel")}
                     required
-                    hint="Include what happened and any details that help the facilities team."
+                    hint={t("newRequest.descriptionHint")}
                   >
                     {(id) => (
                       <textarea
@@ -181,43 +200,44 @@ export default function NewRequest() {
                         required
                         maxLength={5000}
                         rows={5}
-                        placeholder="Describe the issue…"
+                        placeholder={t("newRequest.descriptionPlaceholder")}
                       />
                     )}
                   </Field>
                 </div>
-                <Field label="Priority" required>
+                <Field label={t("newRequest.priority")} required>
                   {(id) => (
                     <select id={id} name="priority" defaultValue="MEDIUM">
-                      <Options values={priorities} />
+                      {priorities.map((value) => (
+                        <option key={value} value={value}>{t(value)}</option>
+                      ))}
                     </select>
                   )}
                 </Field>
               </div>
-              <ErrorAlert message={items.error} onRetry={items.refresh} />
+              <ErrorAlert message={t(items.error)} onRetry={items.refresh} retryLabel={t("newRequest.retry")} />
               <div className="form-actions">
                 <Link className="button secondary" to="/staff/requests">
-                  Cancel
+                  {t("newRequest.cancel")}
                 </Link>
                 <SubmitButton
                   busy={busy}
+                  busyLabel={t("newRequest.saving")}
                   disabled={!building || items.loading || Boolean(items.error)}
                 >
-                  Submit request
+                  {t("newRequest.submit")}
                 </SubmitButton>
               </div>
             </form>
           </section>
           <aside className="form-note">
             <Info size={22} />
-            <h3>A little detail goes a long way</h3>
+            <h3>{t("newRequest.noteTitle")}</h3>
             <p>
-              Choose the correct building and give a clear room or location so
-              the team can find the issue.
+              {t("newRequest.noteBuilding")}
             </p>
             <p>
-              You can track updates and administrator notes in My Requests after
-              submitting.
+              {t("newRequest.noteTrack")}
             </p>
           </aside>
         </div>

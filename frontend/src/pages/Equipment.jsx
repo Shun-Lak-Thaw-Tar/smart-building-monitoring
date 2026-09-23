@@ -4,13 +4,13 @@ import { useResource } from "../hooks/useResource";
 import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useAction } from "../hooks/useAction";
 import { useToast } from "../context/ToastContext";
+import { useLanguage } from "../context/LanguageContext";
 import { equipmentService } from "../services/equipmentService";
 import { buildingService } from "../services/buildingService";
 import {
   PageHeader,
   ResourceState,
   Field,
-  Options,
   Badge,
   EmptyState,
   Modal,
@@ -19,6 +19,7 @@ import {
 } from "../components/UI";
 import { equipmentStatuses } from "../utils/format";
 export default function Equipment() {
+  const { t } = useLanguage();
   const [building, setBuilding] = useState(""),
     [status, setStatus] = useState(""),
     [search, setSearch] = useState(""),
@@ -29,7 +30,7 @@ export default function Equipment() {
       building,
     ),
     buildings = useResource(buildingService.list);
-  useRefreshOnFocus(resource.refresh);
+  useRefreshOnFocus(resource.refresh, t("equipmentPage.refreshError"));
   const items = (resource.data || []).filter(
     (e) =>
       (!status || e.status === status) &&
@@ -41,8 +42,9 @@ export default function Equipment() {
   return (
     <>
       <PageHeader
-        title="Equipment management"
-        description="Keep campus equipment records accurate and up to date."
+        eyebrow={t("equipmentPage.eyebrow")}
+        title={t("equipmentPage.title")}
+        description={t("equipmentPage.description")}
       >
         <button
           className="button"
@@ -50,29 +52,29 @@ export default function Equipment() {
           disabled={buildings.loading || Boolean(buildings.error)}
         >
           <CirclePlus size={18} />
-          Add Equipment
+          {t("equipmentPage.add")}
         </button>
       </PageHeader>
       <div className="panel filter-panel">
         <div className="filters">
-          <Field label="Search equipment">
+          <Field label={t("equipmentPage.search")}>
             {(id) => (
               <input
                 id={id}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Name, type, location or building…"
+                placeholder={t("equipmentPage.searchPlaceholder")}
               />
             )}
           </Field>
-          <Field label="Building">
+          <Field label={t("equipmentPage.building")}>
             {(id) => (
               <select
                 id={id}
                 value={building}
                 onChange={(e) => setBuilding(e.target.value)}
               >
-                <option value="">All buildings</option>
+                <option value="">{t("equipmentPage.allBuildings")}</option>
                 {buildings.data?.map((b) => (
                   <option key={b.building_id} value={b.building_id}>
                     {b.building_name}
@@ -81,15 +83,15 @@ export default function Equipment() {
               </select>
             )}
           </Field>
-          <Field label="Status">
+          <Field label={t("equipmentPage.status")}>
             {(id) => (
               <select
                 id={id}
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
               >
-                <option value="">All statuses</option>
-                <Options values={equipmentStatuses} />
+                <option value="">{t("equipmentPage.allStatuses")}</option>
+                {equipmentStatuses.map((value) => <option key={value} value={value}>{t(value)}</option>)}
               </select>
             )}
           </Field>
@@ -101,29 +103,29 @@ export default function Equipment() {
               setSearch("");
             }}
           >
-            Clear filters
+            {t("equipmentPage.clear")}
           </button>
         </div>
-        <ErrorAlert message={buildings.error} onRetry={buildings.refresh} />
+        <ErrorAlert message={t(buildings.error)} onRetry={buildings.refresh} retryLabel={t("equipmentPage.retry")} />
       </div>
       <section className="panel">
         <div className="panel-heading">
-          <h2>Campus equipment</h2>
-          <span className="count-label">{items.length} records</span>
+          <h2>{t("equipmentPage.campusEquipment")}</h2>
+          <span className="count-label">{items.length} {t(items.length === 1 ? "equipmentPage.oneRecord" : "equipmentPage.records")}</span>
         </div>
-        <ResourceState resource={resource}>
+        <ResourceState resource={resource} copy={{ loading: t("equipmentPage.loading"), retry: t("equipmentPage.retry"), error: t }}>
           {items.length ? (
             <>
               <div className="table-scroll management-table">
                 <table>
                   <thead>
                     <tr>
-                      <th>Equipment</th>
-                      <th>Building</th>
-                      <th>Type</th>
-                      <th>Location</th>
-                      <th>Status</th>
-                      <th>Action</th>
+                      <th>{t("equipmentPage.equipment")}</th>
+                      <th>{t("equipmentPage.building")}</th>
+                      <th>{t("equipmentPage.type")}</th>
+                      <th>{t("equipmentPage.location")}</th>
+                      <th>{t("equipmentPage.status")}</th>
+                      <th>{t("equipmentPage.action")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -144,11 +146,11 @@ export default function Equipment() {
                         <td>
                           <button
                             className="table-action text-button"
-                            aria-label={"Edit " + e.equipment_name}
+                            aria-label={`${t("equipmentPage.edit")} ${e.equipment_name}`}
                             onClick={() => setEditing(e)}
                           >
                             <Pencil size={14} />
-                            Edit
+                            {t("equipmentPage.edit")}
                           </button>
                         </td>
                       </tr>
@@ -172,17 +174,17 @@ export default function Equipment() {
                     </p>
                     <button
                       className="text-button"
-                      aria-label={"Edit " + e.equipment_name}
+                      aria-label={`${t("equipmentPage.edit")} ${e.equipment_name}`}
                       onClick={() => setEditing(e)}
                     >
-                      Edit equipment →
+                      {t("equipmentPage.editEquipment")} →
                     </button>
                   </div>
                 ))}
               </div>
             </>
           ) : (
-            <EmptyState title="No equipment matches the selected filters." />
+            <EmptyState title={t("equipmentPage.empty")} />
           )}
         </ResourceState>
       </section>
@@ -201,6 +203,7 @@ export default function Equipment() {
   );
 }
 function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
+  const { t } = useLanguage();
   const action = useAction(),
     toast = useToast(),
     edit = Boolean(equipment.equipment_id);
@@ -208,7 +211,7 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(e.currentTarget));
     if (Object.values(body).some((v) => !v.trim())) {
-      action.setError("Please complete all required fields.");
+      action.setError("equipmentPage.requiredFields");
       return;
     }
     if (!edit) body.building_id = Number(body.building_id);
@@ -217,30 +220,36 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
       else await equipmentService.create(body);
       toast(
         edit
-          ? "Equipment updated successfully."
-          : "Equipment added successfully.",
+          ? t("equipmentPage.updateSuccess")
+          : t("equipmentPage.addSuccess"),
       );
       onSaved();
     });
   }
   return (
     <Modal
-      title={edit ? "Edit equipment" : "Add equipment"}
+      title={t(edit ? "equipmentPage.editDialog" : "equipmentPage.addDialog")}
       onClose={onClose}
       busy={action.busy}
+      closeLabel={t("equipmentPage.closeDialog")}
     >
-      <ErrorAlert message={action.error} />
-      <form onSubmit={submit}>
+      <ErrorAlert message={t(action.error)} />
+      <form
+        onSubmit={submit}
+        onInvalidCapture={(e) => e.target.setCustomValidity(t("equipmentPage.requiredValidation"))}
+        onInputCapture={(e) => e.target.setCustomValidity("")}
+        onChangeCapture={(e) => e.target.setCustomValidity("")}
+      >
         {edit ? (
           <div className="readonly-field">
-            <span>Building</span>
+            <span>{t("equipmentPage.building")}</span>
             <strong>{equipment.building.building_name}</strong>
           </div>
         ) : (
-          <Field label="Building" required>
+          <Field label={t("equipmentPage.building")} required>
             {(id) => (
               <select id={id} name="building_id" required defaultValue="">
-                <option value="">Select a building</option>
+                <option value="">{t("equipmentPage.selectBuilding")}</option>
                 {buildings.map((b) => (
                   <option key={b.building_id} value={b.building_id}>
                     {b.building_name}
@@ -250,7 +259,7 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
             )}
           </Field>
         )}
-        <Field label="Equipment Name" required>
+        <Field label={t("equipmentPage.name")} required>
           {(id) => (
             <input
               id={id}
@@ -262,7 +271,7 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
           )}
         </Field>
         <div className="form-grid">
-          <Field label="Equipment Type" required>
+          <Field label={t("equipmentPage.equipmentType")} required>
             {(id) => (
               <input
                 id={id}
@@ -273,7 +282,7 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
               />
             )}
           </Field>
-          <Field label="Location" required>
+          <Field label={t("equipmentPage.location")} required>
             {(id) => (
               <input
                 id={id}
@@ -285,20 +294,20 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
             )}
           </Field>
         </div>
-        <Field label="Status">
+        <Field label={t("equipmentPage.status")}>
           {(id) => (
             <select
               id={id}
               name="status"
               defaultValue={equipment.status || "OPERATIONAL"}
             >
-              <Options values={equipmentStatuses} />
+              {equipmentStatuses.map((value) => <option key={value} value={value}>{t(value)}</option>)}
             </select>
           )}
         </Field>
         <div className="form-actions">
-          <SubmitButton busy={action.busy}>
-            {edit ? "Save changes" : "Add equipment"}
+          <SubmitButton busy={action.busy} busyLabel={t("equipmentPage.saving")}>
+            {t(edit ? "equipmentPage.save" : "equipmentPage.addButton")}
           </SubmitButton>
         </div>
       </form>
