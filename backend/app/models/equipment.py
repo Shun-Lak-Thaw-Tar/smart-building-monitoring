@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from .maintenance_request import MaintenanceRequest
     from .maintenance_history import MaintenanceHistory
     from .alert import Alert
+    from .room import Room
 
 
 class Equipment(Base):
@@ -19,6 +20,7 @@ class Equipment(Base):
 
     equipment_id: Mapped[int] = mapped_column(Identity(), primary_key=True)
     building_id: Mapped[int] = mapped_column(ForeignKey("buildings.building_id", ondelete="RESTRICT"), index=True)
+    room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.room_id", ondelete="SET NULL"), index=True)
     equipment_name: Mapped[str] = mapped_column(String(150))
     equipment_type: Mapped[str] = mapped_column(String(100))
     location: Mapped[str] = mapped_column(String(150))
@@ -26,6 +28,7 @@ class Equipment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     building: Mapped[Building] = relationship(back_populates="equipment")
+    room: Mapped[Room | None] = relationship(back_populates="equipment")
     requests: Mapped[list[MaintenanceRequest]] = relationship(back_populates="equipment", passive_deletes="all")
     maintenance_records: Mapped[list[MaintenanceHistory]] = relationship(back_populates="equipment", passive_deletes="all")
     alerts: Mapped[list[Alert]] = relationship(back_populates="equipment", passive_deletes="all")

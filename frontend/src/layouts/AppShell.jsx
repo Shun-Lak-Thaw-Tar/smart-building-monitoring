@@ -17,6 +17,10 @@ import {
   BellRing,
   Zap,
   Thermometer,
+  DoorOpen,
+  HeartPulse,
+  ShieldAlert,
+  FileBarChart,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
@@ -31,6 +35,8 @@ const staff = [
 const admin = [
   ["dashboard", "Dashboard", LayoutDashboard],
   ["operations", "Campus Operations", Building2],
+  ["rooms", "Room Dashboard", DoorOpen],
+  ["equipment-intelligence", "Equipment Intelligence", HeartPulse],
   ["requests", "Requests", ClipboardList],
   ["equipment", "Equipment", MonitorCog],
   ["maintenance", "Maintenance History", Wrench],
@@ -39,6 +45,8 @@ const admin = [
   ["alerts", "Alerts", BellRing],
   ["energy", "Energy Intelligence", Zap],
   ["comfort", "Comfort Intelligence", Thermometer],
+  ["safety", "Safety & Security", ShieldAlert],
+  ["reports", "Reports", FileBarChart],
 ];
 export default function AppShell() {
   const { user, logout } = useAuth(),
@@ -59,8 +67,8 @@ export default function AppShell() {
   const displayTitle = t({
     Dashboard: "dashboard", "New Request": "newRequest", "My Requests": "myRequests",
     Requests: "requests", Equipment: "equipment", "Maintenance History": "maintenance",
-    "Building Monitoring": "monitoring", "Staff Accounts": "staffAccounts", Alerts: "alerts", "Energy Intelligence": "energy", "Comfort Intelligence": "comfort", "Campus Operations": "campusOperations",
-    "Campus Facilities": "shell.campusFacilities",
+    "Building Monitoring": "monitoring", "Staff Accounts": "staffAccounts", Alerts: "alerts", "Energy Intelligence": "energy", "Comfort Intelligence": "comfort", "Campus Operations": "campusOperations", "Room Dashboard": "rooms", "Equipment Intelligence": "equipmentIntelligence",
+    "Campus Facilities": "shell.campusFacilities", "Safety & Security": "safety", Reports: "reports",
   }[title]);
   useEffect(() => {
     setOpen(false);
@@ -94,7 +102,7 @@ export default function AppShell() {
             onClick={() => setOpen(false)}
           >
             <Icon size={20} aria-hidden="true" />
-            <span>{t({ Dashboard: "dashboard", "New Request": "newRequest", "My Requests": "myRequests", Requests: "requests", Equipment: "equipment", "Maintenance History": "maintenance", "Building Monitoring": "monitoring", "Staff Accounts": "staffAccounts", Alerts: "alerts", "Energy Intelligence": "energy", "Comfort Intelligence": "comfort", "Campus Operations": "campusOperations" }[label])}</span>
+            <span>{t({ Dashboard: "dashboard", "New Request": "newRequest", "My Requests": "myRequests", Requests: "requests", Equipment: "equipment", "Maintenance History": "maintenance", "Building Monitoring": "monitoring", "Staff Accounts": "staffAccounts", Alerts: "alerts", "Energy Intelligence": "energy", "Comfort Intelligence": "comfort", "Campus Operations": "campusOperations", "Room Dashboard": "rooms", "Equipment Intelligence": "equipmentIntelligence", "Safety & Security": "safety", Reports: "reports" }[label])}</span>
           </NavLink>
         ))}
       </nav>

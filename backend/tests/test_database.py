@@ -15,11 +15,11 @@ from sqlalchemy.orm import Session, configure_mappers
 
 from app.core.config import settings
 from app.db.base import Base
-from app.db.seed import BUILDINGS, seed_baseline
+from app.db.seed import BUILDINGS, ROOMS, seed_baseline
 from app.db.session import get_engine
 from app.models import (
     Building, Equipment, EnvironmentalReading, User, MaintenanceRequest,
-    RequestStatusHistory, MaintenanceHistory, Alert,
+    RequestStatusHistory, MaintenanceHistory, Alert, Room,
 )
 
 pytestmark = pytest.mark.database
@@ -44,7 +44,7 @@ def test_schema_and_migration_head(connection):
     assert MigrationContext.configure(connection).get_current_revision() == ScriptDirectory.from_config(config).get_current_head()
     inspector = inspect(connection)
     expected = {"users", "buildings", "equipment", "maintenance_requests",
-                "request_status_history", "maintenance_history", "environmental_readings", "alerts"}
+                "request_status_history", "maintenance_history", "environmental_readings", "alerts", "rooms", "safety_events"}
     assert set(inspector.get_table_names(schema="public")) == expected | {"alembic_version"}
     configure_mappers()
     for name in expected:
@@ -66,6 +66,7 @@ def test_foreign_keys_indexes_and_checks(connection):
     inspector = inspect(connection)
     expected_fks = {
         ("equipment", "building_id"): ("buildings", "building_id", "RESTRICT"),
+        ("equipment", "room_id"): ("rooms", "room_id", "SET NULL"),
         ("environmental_readings", "building_id"): ("buildings", "building_id", "RESTRICT"),
         ("maintenance_requests", "building_id"): ("buildings", "building_id", "RESTRICT"),
         ("maintenance_requests", "submitted_by"): ("users", "user_id", "RESTRICT"),
@@ -78,6 +79,11 @@ def test_foreign_keys_indexes_and_checks(connection):
         ("maintenance_history", "completed_by"): ("users", "user_id", "RESTRICT"),
         ("alerts", "building_id"): ("buildings", "building_id", "RESTRICT"),
         ("alerts", "equipment_id"): ("equipment", "equipment_id", "SET NULL"),
+        ("alerts", "acknowledged_by"): ("users", "user_id", "SET NULL"),
+        ("alerts", "resolved_by"): ("users", "user_id", "SET NULL"),
+        ("alerts", "maintenance_request_id"): ("maintenance_requests", "request_id", "SET NULL"),
+        ("rooms", "building_id"): ("buildings", "building_id", "RESTRICT"),
+        ("safety_events", "building_id"): ("buildings", "building_id", "RESTRICT"),
     }
     actual = {}
     for name in Base.metadata.tables:
@@ -86,16 +92,18 @@ def test_foreign_keys_indexes_and_checks(connection):
                 fk["referred_table"], fk["referred_columns"][0], fk["options"]["ondelete"])
     assert actual == expected_fks
     expected_indexes = {
-        "equipment": {("building_id",), ("status",)},
+        "equipment": {("building_id",), ("room_id",), ("status",)},
         "maintenance_requests": {(c,) for c in ("submitted_by", "building_id", "equipment_id", "assigned_to", "status", "priority", "created_at")},
         "request_status_history": {(c,) for c in ("request_id", "changed_by", "changed_at")},
         "maintenance_history": {(c,) for c in ("equipment_id", "request_id", "completed_by", "completed_at")},
         "environmental_readings": {("building_id", "recorded_at")},
-        "alerts": {(c,) for c in ("building_id", "equipment_id", "category", "severity", "status", "created_at")},
+        "alerts": {(c,) for c in ("building_id", "equipment_id", "category", "severity", "status", "created_at", "acknowledged_by", "resolved_by", "maintenance_request_id")},
+        "rooms": {("building_id",), ("floor",), ("room_type",), ("building_id", "room_number")},
+        "safety_events": {(c,) for c in ("building_id", "section", "event_type", "status", "occurred_at")},
     }
     for name, columns in expected_indexes.items():
         assert {tuple(i["column_names"]) for i in inspector.get_indexes(name)} == columns
-    assert sum(len(inspector.get_check_constraints(name)) for name in Base.metadata.tables) == 11
+    assert sum(len(inspector.get_check_constraints(name)) for name in Base.metadata.tables) == 14
 
 
 @pytest.fixture
@@ -194,15 +202,23 @@ def test_request_delete_preserves_service_history(workflow):
 def test_seed_counts_and_idempotency(connection):
     with Session(bind=connection, join_transaction_mode="create_savepoint") as session:
         before = {name: session.scalar(select(func.count()).select_from(table)) for name, table in Base.metadata.tables.items()}
-        assert seed_baseline(session) == {"buildings": 0, "equipment": 0, "environmental_readings": 0}
-        assert seed_baseline(session) == {"buildings": 0, "equipment": 0, "environmental_readings": 0}
+        assert seed_baseline(session) == {"buildings": 0, "equipment": 0, "environmental_readings": 0, "rooms": 0}
+        assert seed_baseline(session) == {"buildings": 0, "equipment": 0, "environmental_readings": 0, "rooms": 0}
         after = {name: session.scalar(select(func.count()).select_from(table)) for name, table in Base.metadata.tables.items()}
         assert before == after
-        assert {name: after[name] for name in ("buildings", "equipment", "environmental_readings")} == {
-            "buildings": 3, "equipment": 9, "environmental_readings": 15}
+        assert {name: after[name] for name in ("buildings", "equipment", "environmental_readings", "rooms")} == {
+            "buildings": 3, "equipment": 9, "environmental_readings": 15, "rooms": 12}
         assert after["maintenance_history"] == before["maintenance_history"]
         assert set(session.scalars(select(Building.building_name))) == set(BUILDINGS)
         assert session.scalar(select(func.count()).select_from(Equipment).join(Building)) == 9
         assert session.scalar(select(func.count()).select_from(EnvironmentalReading).join(Building)) == 15
+        assert session.scalar(select(func.count()).select_from(Room).join(Building)) == 12
+        assigned = session.scalars(select(Equipment).where(Equipment.room_id.is_not(None))).all()
+        assert len(assigned) == 5 and all(item.room_id is not None for item in assigned)
+        building_ids = {building.building_name: building.building_id for building in session.scalars(select(Building)).all()}
+        assert {(row[0], row[1]) for row in session.execute(select(Room.building_id, Room.room_number))} == {
+            (building_ids[name], room_number) for name, room_number, *_ in ROOMS
+        }
         per_building = session.execute(select(EnvironmentalReading.building_id, func.count()).group_by(EnvironmentalReading.building_id)).all()
         assert len(per_building) == 3 and all(count == 5 for _, count in per_building)
+

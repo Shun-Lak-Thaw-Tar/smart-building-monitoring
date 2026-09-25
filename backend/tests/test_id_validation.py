@@ -14,6 +14,7 @@ OVERSIZED_ID = "999999999999999999999"
     ("GET", "/api/equipment/" + OVERSIZED_ID, "STAFF", None),
     ("PATCH", "/api/equipment/" + OVERSIZED_ID, "ADMIN", {"status": "OPERATIONAL"}),
     ("GET", "/api/equipment/" + OVERSIZED_ID + "/history", "ADMIN", None),
+    ("GET", "/api/equipment/" + OVERSIZED_ID + "/intelligence", "STAFF", None),
     ("GET", "/api/environment/" + OVERSIZED_ID, "STAFF", None),
     ("GET", "/api/monitoring/buildings/" + OVERSIZED_ID, "STAFF", None),
     ("GET", "/api/requests/" + OVERSIZED_ID, "STAFF", None),

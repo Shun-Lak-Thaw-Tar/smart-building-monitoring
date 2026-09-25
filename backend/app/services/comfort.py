@@ -91,7 +91,7 @@ def _create_missing_uncomfortable_alerts(session: Session, summaries: list[dict]
         return
     building_ids = [summary["building"].building_id for summary in summaries]
     active = set(session.scalars(select(Alert.building_id).where(
-        Alert.building_id.in_(building_ids), Alert.category == "COMFORT", Alert.status == "ACTIVE",
+        Alert.building_id.in_(building_ids), Alert.category == "COMFORT", Alert.status.in_(("ACTIVE", "ACKNOWLEDGED")),
     )).all())
     for summary in summaries:
         building = summary["building"]
@@ -108,3 +108,4 @@ def _create_missing_uncomfortable_alerts(session: Session, summaries: list[dict]
             ),
             status="ACTIVE",
         ))
+

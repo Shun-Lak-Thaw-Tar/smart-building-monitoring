@@ -82,11 +82,13 @@ def test_application_bugs_remain_500(api_request, override_dependency, error):
 def test_openapi_and_read_only_routes(api_request):
     schema = api_request("/openapi.json").json()
     resources = {"/api/buildings", "/api/buildings/{building_id}", "/api/equipment",
-                 "/api/equipment/{equipment_id}", "/api/environment", "/api/environment/{building_id}"}
+                 "/api/equipment/{equipment_id}", "/api/equipment/intelligence", "/api/equipment/{equipment_id}/intelligence", "/api/environment", "/api/environment/{building_id}", "/api/rooms", "/api/rooms/{room_id}"}
     assert resources | {"/api/health", "/api/auth/login", "/api/auth/me", "/api/users/admins"} <= set(schema["paths"])
     assert set(schema["paths"]) == resources | {
         "/api/health", "/api/auth/login", "/api/auth/me", "/api/auth/change-password", "/api/users/admins",
-        "/api/users/staff", "/api/users/staff/{user_id}/status", "/api/alerts", "/api/alerts/{alert_id}", "/api/alerts/{alert_id}/resolve", "/api/energy/buildings", "/api/comfort/buildings", "/api/campus/overview",
+            "/api/users/staff", "/api/users/staff/{user_id}/status", "/api/alerts", "/api/alerts/{alert_id}", "/api/alerts/{alert_id}/acknowledge", "/api/alerts/{alert_id}/maintenance-request", "/api/alerts/{alert_id}/resolve", "/api/energy/buildings", "/api/comfort/buildings", "/api/campus/overview",
+            "/api/safety/events",
+            "/api/reports/{report_type}",
         "/api/maintenance-history", "/api/equipment/{equipment_id}/history",
         "/api/monitoring/buildings", "/api/monitoring/buildings/{building_id}",
         "/api/requests", "/api/requests/my", "/api/requests/{request_id}",
@@ -111,3 +113,4 @@ def test_openapi_and_read_only_routes(api_request):
     reading = schema["components"]["schemas"]["EnvironmentalReadingResponse"]["properties"]
     assert all(reading[field]["type"] == "number" for field in ("temperature", "humidity", "energy_consumption"))
     assert api_request("/api/equipment/1", method="DELETE").status_code == 405
+

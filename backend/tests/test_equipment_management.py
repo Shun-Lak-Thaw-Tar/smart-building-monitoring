@@ -16,6 +16,7 @@ def test_equipment_create_patch_noop(auth_db, tokens, api_request, equipment_bod
     assert response.status_code == 201
     record = response.json()
     assert record["status"] == "OPERATIONAL" and record["building"]["building_id"] == 1
+    assert record["room"] is None
     assert (record["equipment_name"], record["equipment_type"], record["location"]) == ("Test AC", "HVAC", "Room 200")
     path = f"/api/equipment/{record['equipment_id']}"
     for data in ({"status": "MAINTENANCE_REQUIRED"}, {"equipment_name": " Renamed ", "location": " New room ", "equipment_type": "AV", "status": "OUT_OF_SERVICE"}):
@@ -41,7 +42,7 @@ def test_create_validation(auth_db, tokens, api_request, equipment_body, change)
     assert api_request("/api/equipment", "POST", headers=tokens["ADMIN"], json=equipment_body | change).status_code == 422
 
 
-@pytest.mark.parametrize("data", [{}, {"building_id": 2}, {"status": None}, {"location": " "}, {"status": "INVALID"}])
+@pytest.mark.parametrize("data", [{}, {"building_id": 2}, {"status": None}, {"location": " "}, {"status": "INVALID"}, {"room_id": 0}])
 def test_patch_validation(auth_db, tokens, api_request, data):
     assert api_request("/api/equipment/1", "PATCH", headers=tokens["ADMIN"], json=data).status_code == 422
 
@@ -54,6 +55,28 @@ def test_equipment_permissions_and_missing(auth_db, tokens, api_request, equipme
     assert response.status_code == 404 and response.json() == {"detail": "Building not found"}
     response = api_request("/api/equipment/999999", "PATCH", headers=tokens["ADMIN"], json={"status": "OPERATIONAL"})
     assert response.status_code == 404 and response.json() == {"detail": "Equipment not found"}
+
+
+def test_equipment_room_assignment_and_same_building_validation(auth_db, tokens, api_request, equipment_body):
+    room = api_request("/api/rooms?building_id=1&search=Admissions", headers=tokens["ADMIN"])
+    assert room.status_code == 200 and len(room.json()) == 1
+    room_id = room.json()[0]["room_id"]
+    created = api_request("/api/equipment", "POST", headers=tokens["ADMIN"], json=equipment_body | {"room_id": room_id})
+    assert created.status_code == 201 and created.json()["room"]["room_id"] == room_id
+    equipment_id = created.json()["equipment_id"]
+    assert equipment_id in {item["equipment_id"] for item in api_request(f"/api/equipment?room_id={room_id}", headers=tokens["STAFF"]).json()}
+
+    cleared = api_request(f"/api/equipment/{equipment_id}", "PATCH", headers=tokens["ADMIN"], json={"room_id": None})
+    assert cleared.status_code == 200 and cleared.json()["room"] is None
+    restored = api_request(f"/api/equipment/{equipment_id}", "PATCH", headers=tokens["ADMIN"], json={"room_id": room_id})
+    assert restored.status_code == 200 and restored.json()["room"]["room_id"] == room_id
+
+    mismatch = api_request("/api/equipment", "POST", headers=tokens["ADMIN"], json=equipment_body | {"room_id": 5})
+    assert mismatch.status_code == 422 and mismatch.json() == {"detail": "Room must belong to the selected building"}
+    missing = api_request("/api/equipment", "POST", headers=tokens["ADMIN"], json=equipment_body | {"room_id": 999999})
+    assert missing.status_code == 404 and missing.json() == {"detail": "Room not found"}
+    mismatch_patch = api_request(f"/api/equipment/{equipment_id}", "PATCH", headers=tokens["ADMIN"], json={"room_id": 5})
+    assert mismatch_patch.status_code == 422 and mismatch_patch.json() == {"detail": "Room must belong to the selected building"}
 
 
 def test_admin_created_equipment_is_fresh_for_staff_requests(auth_db, tokens, api_request, equipment_body):

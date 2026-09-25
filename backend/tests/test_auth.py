@@ -118,7 +118,7 @@ def tokens(auth_db):
 def test_me_and_existing_reads(auth_db, tokens, api_request, role):
     response = api_request("/api/auth/me", headers=tokens[role])
     assert response.status_code == 200 and response.json()["role"] == role
-    for path in ("/api/buildings", "/api/buildings/1", "/api/equipment", "/api/equipment/1", "/api/environment", "/api/environment/1"):
+    for path in ("/api/buildings", "/api/buildings/1", "/api/equipment", "/api/equipment/1", "/api/environment", "/api/environment/1", "/api/rooms", "/api/rooms/1"):
         assert api_request(path, headers=tokens[role]).status_code == 200
         missing = api_request(path, headers={})
         assert missing.status_code == 401 and missing.json() == {"detail": "Authentication required"}

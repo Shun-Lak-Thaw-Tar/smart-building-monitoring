@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CirclePlus, Pencil, MonitorCog } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
@@ -7,6 +7,7 @@ import { useToast } from "../context/ToastContext";
 import { useLanguage } from "../context/LanguageContext";
 import { equipmentService } from "../services/equipmentService";
 import { buildingService } from "../services/buildingService";
+import { roomService } from "../services/roomService";
 import {
   PageHeader,
   ResourceState,
@@ -124,6 +125,7 @@ export default function Equipment() {
                       <th>{t("equipmentPage.building")}</th>
                       <th>{t("equipmentPage.type")}</th>
                       <th>{t("equipmentPage.location")}</th>
+                      <th>{t("equipmentPage.room")}</th>
                       <th>{t("equipmentPage.status")}</th>
                       <th>{t("equipmentPage.action")}</th>
                     </tr>
@@ -140,6 +142,7 @@ export default function Equipment() {
                         <td>{e.building.building_name}</td>
                         <td>{e.equipment_type}</td>
                         <td>{e.location}</td>
+                        <td>{e.room ? `${e.room.room_number} · ${e.room.room_name}` : t("equipmentPage.buildingLevel")}</td>
                         <td>
                           <Badge value={e.status} />
                         </td>
@@ -170,7 +173,7 @@ export default function Equipment() {
                       {e.equipment_name}
                     </h3>
                     <p>
-                      {e.equipment_type} · {e.location}
+                      {e.equipment_type} · {e.location}{e.room ? ` · ${e.room.room_number}` : ` · ${t("equipmentPage.buildingLevel")}`}
                     </p>
                     <button
                       className="text-button"
@@ -207,14 +210,21 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
   const action = useAction(),
     toast = useToast(),
     edit = Boolean(equipment.equipment_id);
+  const [buildingId, setBuildingId] = useState(edit ? String(equipment.building.building_id) : "");
+  const [roomId, setRoomId] = useState(equipment.room ? String(equipment.room.room_id) : "");
+  const rooms = useResource(() => roomService.list(buildingId ? { building_id: buildingId } : undefined), buildingId);
+  useEffect(() => {
+    if (roomId && rooms.data && !rooms.data.some((room) => String(room.room_id) === roomId)) setRoomId("");
+  }, [buildingId, rooms.data, roomId]);
   function submit(e) {
     e.preventDefault();
     const body = Object.fromEntries(new FormData(e.currentTarget));
-    if (Object.values(body).some((v) => !v.trim())) {
+    if (Object.entries(body).filter(([field]) => field !== "room_id").some(([, value]) => !value.trim())) {
       action.setError("equipmentPage.requiredFields");
       return;
     }
     if (!edit) body.building_id = Number(body.building_id);
+    body.room_id = body.room_id ? Number(body.room_id) : null;
     action.run(async () => {
       if (edit) await equipmentService.update(equipment.equipment_id, body);
       else await equipmentService.create(body);
@@ -248,7 +258,7 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
         ) : (
           <Field label={t("equipmentPage.building")} required>
             {(id) => (
-              <select id={id} name="building_id" required defaultValue="">
+              <select id={id} name="building_id" required value={buildingId} onChange={(event) => { setBuildingId(event.target.value); setRoomId(""); }}>
                 <option value="">{t("equipmentPage.selectBuilding")}</option>
                 {buildings.map((b) => (
                   <option key={b.building_id} value={b.building_id}>
@@ -269,6 +279,12 @@ function EquipmentForm({ equipment, buildings, onClose, onSaved }) {
               defaultValue={equipment.equipment_name || ""}
             />
           )}
+        </Field>
+        <Field label={t("equipmentPage.room")} hint={t("equipmentPage.roomHint")}>
+          {(id) => <select id={id} name="room_id" value={roomId} onChange={(event) => setRoomId(event.target.value)} disabled={!buildingId || rooms.loading}>
+            <option value="">{t("equipmentPage.buildingLevel")}</option>
+            {rooms.data?.map((room) => <option key={room.room_id} value={room.room_id}>{room.room_number} · {room.room_name}</option>)}
+          </select>}
         </Field>
         <div className="form-grid">
           <Field label={t("equipmentPage.equipmentType")} required>

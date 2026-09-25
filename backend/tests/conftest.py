@@ -36,11 +36,11 @@ def isolated_test_database():
             # Fixed table names plus the _test guard above prevent development-data loss.
             connection.execute(text(
                 "TRUNCATE TABLE alerts, maintenance_history, request_status_history, maintenance_requests, "
-                "environmental_readings, equipment, users, buildings RESTART IDENTITY CASCADE"
+                "environmental_readings, safety_events, rooms, equipment, users, buildings RESTART IDENTITY CASCADE"
             ))
         with Session(engine) as session, session.begin():
             assert seed_baseline(session) == {
-                "buildings": 3, "equipment": 9, "environmental_readings": 15,
+                "buildings": 3, "equipment": 9, "environmental_readings": 15, "rooms": 12,
             }
         yield
     finally:

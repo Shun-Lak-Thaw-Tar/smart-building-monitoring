@@ -4,6 +4,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validato
 
 from app.schemas.building import BuildingBrief
 from app.schemas.ids import DatabaseId
+from app.schemas.room import RoomBrief
 
 
 class EquipmentStatus(str, Enum):
@@ -22,6 +23,7 @@ class EquipmentResponse(BaseModel):
     status: EquipmentStatus
     created_at: AwareDatetime
     building: BuildingBrief
+    room: RoomBrief | None
 
 
 class EquipmentCreate(BaseModel):
@@ -31,6 +33,7 @@ class EquipmentCreate(BaseModel):
     equipment_type: str = Field(min_length=1, max_length=100)
     location: str = Field(min_length=1, max_length=150)
     status: EquipmentStatus = EquipmentStatus.OPERATIONAL
+    room_id: DatabaseId | None = None
 
 
 class EquipmentUpdate(BaseModel):
@@ -39,11 +42,12 @@ class EquipmentUpdate(BaseModel):
     equipment_type: str | None = Field(default=None, min_length=1, max_length=100)
     location: str | None = Field(default=None, min_length=1, max_length=150)
     status: EquipmentStatus | None = None
+    room_id: DatabaseId | None = None
 
     @model_validator(mode="after")
     def require_nonnull_update(self):
         if not self.model_fields_set:
             raise ValueError("At least one equipment field is required")
-        if any(getattr(self, field) is None for field in self.model_fields_set):
+        if any(getattr(self, field) is None for field in self.model_fields_set - {"room_id"}):
             raise ValueError("Equipment fields cannot be null")
         return self

@@ -16,8 +16,8 @@ def campus_overview(session: Session) -> CampusOverviewResponse:
     building_ids = [item.building.building_id for item in monitoring]
     alert_rows = session.execute(select(
         Alert.building_id,
-        func.count().filter(Alert.status == "ACTIVE").label("active_alert_count"),
-        func.count().filter(Alert.status == "ACTIVE", Alert.severity == "CRITICAL").label("critical_alert_count"),
+        func.count().filter(Alert.status.in_(("ACTIVE", "ACKNOWLEDGED"))).label("active_alert_count"),
+        func.count().filter(Alert.status.in_(("ACTIVE", "ACKNOWLEDGED")), Alert.severity == "CRITICAL").label("critical_alert_count"),
     ).where(Alert.building_id.in_(building_ids)).group_by(Alert.building_id)).mappings()
     alerts = {row["building_id"]: row for row in alert_rows}
 
@@ -55,3 +55,4 @@ def campus_overview(session: Session) -> CampusOverviewResponse:
         uncomfortable_buildings=sum(item.comfort_condition == "UNCOMFORTABLE" for item in buildings),
     )
     return CampusOverviewResponse(totals=totals, buildings=buildings)
+

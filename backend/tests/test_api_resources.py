@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.security import create_access_token
 from app.db.session import get_engine, get_session
 from app.main import app
-from app.models import Building, Equipment, EnvironmentalReading, MaintenanceHistory, MaintenanceRequest, RequestStatusHistory, User
+from app.models import Building, Equipment, EnvironmentalReading, MaintenanceHistory, MaintenanceRequest, RequestStatusHistory, Room, User
 
 pytestmark = pytest.mark.database
 
@@ -57,16 +57,20 @@ def test_equipment_and_filter(api_db, api_request):
     order = [(r["building"]["building_id"], r["equipment_name"]) for r in rows]
     assert order == sorted(order)
     for row in rows:
-        assert set(row) == {"equipment_id", "equipment_name", "equipment_type", "location", "status", "created_at", "building"}
+        assert set(row) == {"equipment_id", "equipment_name", "equipment_type", "location", "status", "created_at", "building", "room"}
         assert set(row["building"]) == {"building_id", "building_name"}
         expected = api_db.scalar(select(Building.building_name).where(Building.building_id == row["building"]["building_id"]))
         assert row["building"]["building_name"] == expected
         assert datetime.fromisoformat(row["created_at"]).tzinfo is not None
+        if row["room"] is not None:
+            assert set(row["room"]) == {"room_id", "room_number", "room_name", "floor"}
     building_id = rows[0]["building"]["building_id"]
     filtered = api_request(f"/api/equipment?building_id={building_id}")
     assert filtered.status_code == 200
     assert len(filtered.json()) == 3
     assert all(r["building"]["building_id"] == building_id for r in filtered.json())
+    room_filtered = api_request("/api/equipment?room_id=1")
+    assert room_filtered.status_code == 200 and all(row["room"]["room_id"] == 1 for row in room_filtered.json())
     empty = api_request("/api/equipment?building_id=999")
     assert empty.status_code == 200 and empty.json() == []
     detail = api_request(f"/api/equipment/{rows[0]['equipment_id']}")
@@ -159,11 +163,12 @@ def test_building_without_readings(api_db, api_request):
 
 
 def test_empty_collections(api_db, api_request):
-    # Only the existing demo tables are touched, entirely inside this rollback transaction.
+    # Only seeded demo tables are touched, entirely inside this rollback transaction.
     api_db.execute(MaintenanceHistory.__table__.delete())
     api_db.execute(RequestStatusHistory.__table__.delete())
     api_db.execute(MaintenanceRequest.__table__.delete())
     api_db.execute(EnvironmentalReading.__table__.delete())
+    api_db.execute(Room.__table__.delete())
     api_db.execute(Equipment.__table__.delete())
     api_db.execute(Building.__table__.delete())
     for path in ("/api/buildings", "/api/equipment", "/api/environment"):
