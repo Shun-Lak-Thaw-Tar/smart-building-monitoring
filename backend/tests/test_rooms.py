@@ -58,7 +58,7 @@ def test_staff_and_admin_can_list_filter_search_and_view_rooms(auth_db, tokens, 
     assert response.status_code == 200 and len(response.json()) == 12
     first = response.json()[0]
     assert set(first) == {"room_id", "room_number", "room_name", "room_type", "floor", "description", "building", "equipment", "equipment_attention_count", "open_request_count", "high_priority_open_request_count", "active_alert_count", "critical_alert_count", "open_requests", "active_alerts"}
-    assert sum(len(row["equipment"]) for row in response.json()) == 5
+    assert all(len(row["equipment"]) >= 3 for row in response.json())
     assert all({"equipment_id", "equipment_name", "equipment_type", "location", "status"} == set(item)
                for row in response.json() for item in row["equipment"])
 

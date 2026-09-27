@@ -1,5 +1,6 @@
 from enum import Enum
 
+from datetime import date
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.auth import UserBrief
@@ -23,11 +24,13 @@ class MaintenanceRequestCreate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     building_id: DatabaseId
+    room_id: DatabaseId | None = None
     equipment_id: DatabaseId | None = None
     room_location: str = Field(min_length=1, max_length=150)
     fault_category: str = Field(min_length=1, max_length=100)
     description: str = Field(min_length=1, max_length=5000)
     priority: RequestPriority
+    preferred_maintenance_date: date | None = None
 
 
 class EquipmentBrief(BaseModel):
@@ -36,11 +39,19 @@ class EquipmentBrief(BaseModel):
     equipment_name: str
 
 
+class RoomBrief(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    room_id: int
+    room_number: str
+    room_name: str
+
+
 class MaintenanceRequestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     request_id: int
     building: BuildingBrief
+    room: RoomBrief | None
     equipment: EquipmentBrief | None
     submitted_by: UserBrief = Field(validation_alias="submitter")
     assigned_to: UserBrief | None = Field(validation_alias="assignee")
@@ -48,6 +59,7 @@ class MaintenanceRequestResponse(BaseModel):
     fault_category: str
     description: str
     priority: RequestPriority
+    preferred_maintenance_date: date | None
     status: RequestStatus
     created_at: AwareDatetime
     updated_at: AwareDatetime

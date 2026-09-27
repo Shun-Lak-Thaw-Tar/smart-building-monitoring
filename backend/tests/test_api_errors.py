@@ -89,7 +89,7 @@ def test_openapi_and_read_only_routes(api_request):
             "/api/users/staff", "/api/users/staff/{user_id}/status", "/api/alerts", "/api/alerts/{alert_id}", "/api/alerts/{alert_id}/acknowledge", "/api/alerts/{alert_id}/maintenance-request", "/api/alerts/{alert_id}/resolve", "/api/energy/buildings", "/api/comfort/buildings", "/api/campus/overview",
             "/api/safety/events",
             "/api/reports/{report_type}",
-        "/api/maintenance-history", "/api/equipment/{equipment_id}/history",
+            "/api/maintenance-history", "/api/maintenance-history/resolved-requests", "/api/maintenance-history/{history_id}", "/api/equipment/{equipment_id}/history",
         "/api/monitoring/buildings", "/api/monitoring/buildings/{building_id}",
         "/api/requests", "/api/requests/my", "/api/requests/{request_id}",
         "/api/requests/{request_id}/assign", "/api/requests/{request_id}/status", "/api/requests/{request_id}/history",
@@ -101,7 +101,7 @@ def test_openapi_and_read_only_routes(api_request):
             else:
                 assert operation.get("security")
     for path in resources:
-        expected_methods = {"get", "post"} if path == "/api/equipment" else {"get", "patch"} if path == "/api/equipment/{equipment_id}" else {"get"}
+        expected_methods = {"get", "post"} if path == "/api/equipment" else {"get", "patch", "delete"} if path == "/api/equipment/{equipment_id}" else {"get"}
         assert set(schema["paths"][path]) == expected_methods
         operation = schema["paths"][path]["get"]
         assert operation["summary"]
@@ -112,5 +112,5 @@ def test_openapi_and_read_only_routes(api_request):
         "OPERATIONAL", "MAINTENANCE_REQUIRED", "OUT_OF_SERVICE"]
     reading = schema["components"]["schemas"]["EnvironmentalReadingResponse"]["properties"]
     assert all(reading[field]["type"] == "number" for field in ("temperature", "humidity", "energy_consumption"))
-    assert api_request("/api/equipment/1", method="DELETE").status_code == 405
+    assert api_request("/api/equipment/1", method="DELETE").status_code == 403
 

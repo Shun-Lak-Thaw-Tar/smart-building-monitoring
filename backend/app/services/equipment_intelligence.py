@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Equipment, MaintenanceHistory, MaintenanceRequest
+from app.models import Alert, Equipment, MaintenanceHistory, MaintenanceRequest
 from app.schemas.equipment import EquipmentResponse
 from app.schemas.equipment_intelligence import EquipmentIntelligenceResponse, HealthBand, HealthReason, MaintenanceContext
 
@@ -95,4 +95,9 @@ def equipment_intelligence(session: Session, equipment_id: int | None = None) ->
             recent_maintenance=[MaintenanceContext(history_id=item.history_id, action_details=item.action_details, completed_at=item.completed_at) for item in recent[:3]],
             suggestions=assistant_suggestions(equipment, recent_faults[equipment.equipment_id], recent),
         ))
+        if band == HealthBand.HIGH_RISK:
+            existing = session.scalar(select(Alert.alert_id).where(Alert.equipment_id == equipment.equipment_id, Alert.category == "EQUIPMENT", Alert.status.in_(("ACTIVE", "ACKNOWLEDGED"))).limit(1))
+            if existing is None:
+                session.add(Alert(building_id=equipment.building_id, equipment_id=equipment.equipment_id, category="EQUIPMENT", severity="CRITICAL", title="High-risk equipment detected", description="Equipment health score is in the HIGH RISK band.", status="ACTIVE"))
+    session.flush()
     return results

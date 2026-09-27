@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.dependencies import get_current_user, require_admin, require_staff
 from app.db.session import get_session
-from app.models import Building, Equipment, MaintenanceRequest, RequestStatusHistory, User
+from app.models import Building, Equipment, MaintenanceRequest, RequestStatusHistory, Room, User
 from app.schemas.maintenance_request import (
     MaintenanceRequestAssign, MaintenanceRequestCreate, MaintenanceRequestResponse, MaintenanceRequestStatusUpdate,
     RequestPriority, RequestStatus, RequestStatusHistoryResponse,
@@ -27,17 +27,26 @@ Admin = Annotated[User, Depends(require_admin)]
 
 
 @router.post("", response_model=MaintenanceRequestResponse, status_code=201,
-             summary="Submit a maintenance request", responses={400: {"description": "Equipment/building mismatch"}})
+             summary="Submit a maintenance request", responses={400: {"description": "Room/equipment mismatch"}})
 def create_request(data: MaintenanceRequestCreate, session: DB, user: Staff):
     with write_transaction(session):
         if session.get(Building, data.building_id) is None:
             raise HTTPException(404, "Building not found")
+        room = None
+        if data.room_id is not None:
+            room = session.get(Room, data.room_id)
+            if room is None:
+                raise HTTPException(404, "Room not found")
+            if room.building_id != data.building_id:
+                raise HTTPException(400, "Room does not belong to the selected building")
         if data.equipment_id is not None:
             equipment = session.get(Equipment, data.equipment_id)
             if equipment is None:
                 raise HTTPException(404, "Equipment not found")
             if equipment.building_id != data.building_id:
                 raise HTTPException(400, "Equipment does not belong to the selected building")
+            if room is not None and equipment.room_id != room.room_id:
+                raise HTTPException(400, "Equipment does not belong to the selected room")
         record = MaintenanceRequest(**data.model_dump(), submitted_by=user.user_id,
                                     assigned_to=None, status="PENDING")
         session.add(record)

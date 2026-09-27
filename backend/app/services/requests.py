@@ -10,6 +10,7 @@ from app.models import MaintenanceRequest, User
 def request_query():
     return select(MaintenanceRequest).options(
         joinedload(MaintenanceRequest.building), joinedload(MaintenanceRequest.equipment),
+        joinedload(MaintenanceRequest.room),
         joinedload(MaintenanceRequest.submitter), joinedload(MaintenanceRequest.assignee),
     )
 

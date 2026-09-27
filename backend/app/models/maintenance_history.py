@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import DateTime, ForeignKey, Identity, Text, func
+from sqlalchemy import DateTime, ForeignKey, Identity, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 class MaintenanceHistory(Base):
     __tablename__ = "maintenance_history"
+    __table_args__ = (UniqueConstraint("request_id", name="uq_maintenance_history_request_id"),)
 
     history_id: Mapped[int] = mapped_column(Identity(), primary_key=True)
     equipment_id: Mapped[int] = mapped_column(ForeignKey("equipment.equipment_id", ondelete="RESTRICT"), index=True)

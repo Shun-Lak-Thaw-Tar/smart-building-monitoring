@@ -11,6 +11,6 @@ from app.services.reports import operational_report
 router = APIRouter(prefix="/api/reports", tags=["Reports"], dependencies=[Depends(require_admin)])
 
 @router.get("/{report_type}", response_model=ReportResponse, summary="Get filtered operational report (ADMIN)")
-def get_report(report_type: ReportType, session: Annotated[Session, Depends(get_session)], building_id: OptionalQueryDatabaseId = None, status: str | None = None, category: str | None = None, start_date: date | None = None, end_date: date | None = None):
-    data = operational_report(session, report_type.value, building_id, status, category, start_date, end_date)
+def get_report(report_type: ReportType, session: Annotated[Session, Depends(get_session)], building_id: OptionalQueryDatabaseId = None, status: str | None = None, category: str | None = None, severity: str | None = None, health_band: str | None = None, event_type: str | None = None, start_date: date | None = None, end_date: date | None = None):
+    data = operational_report(session, report_type.value, building_id, status, category, severity, health_band, event_type, start_date, end_date)
     return {"report_type": report_type, **data}

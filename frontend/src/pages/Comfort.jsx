@@ -7,7 +7,7 @@ import { comfortService } from "../services/comfortService";
 import { ComfortCharts } from "../components/Charts";
 import { Badge, EmptyState, PageHeader, ResourceState } from "../components/UI";
 
-export default function Comfort() {
+export default function Comfort({ embedded = false }) {
   const { t, language } = useLanguage();
   const resource = useResource(comfortService.buildings);
   const [selectedId, setSelectedId] = useState(null);
@@ -18,7 +18,7 @@ export default function Comfort() {
   const attention = summaries.filter((item) => item.condition === "ATTENTION").length;
   const formatDate = (value) => new Intl.DateTimeFormat(language === "my" ? "my-MM" : undefined, { day: "2-digit", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(value));
   return <>
-    <PageHeader eyebrow={t("comfortPage.eyebrow")} title={t("comfortPage.title")} description={t("comfortPage.description")}><button className="button secondary" onClick={() => resource.refresh({ background: true })} disabled={resource.loading}><RefreshCw size={16} />{t("comfortPage.refresh")}</button></PageHeader>
+    {!embedded && <PageHeader eyebrow={t("comfortPage.eyebrow")} title={t("comfortPage.title")} description={t("comfortPage.description")}><button className="button secondary" onClick={() => resource.refresh({ background: true })} disabled={resource.loading}><RefreshCw size={16} />{t("comfortPage.refresh")}</button></PageHeader>}
     <section className="stat-grid comfort-stat-grid" aria-label={t("comfortPage.summary")}><div className="stat-card"><div className="stat-top"><span>{t("comfortPage.uncomfortable")}</span><Thermometer size={20} aria-hidden="true" /></div><strong>{uncomfortable}</strong><small>{t("comfortPage.uncomfortableNote")}</small></div><div className="stat-card"><div className="stat-top"><span>{t("comfortPage.attention")}</span><Droplets size={20} aria-hidden="true" /></div><strong>{attention}</strong><small>{t("comfortPage.attentionNote")}</small></div></section>
     <p className="comfort-rule"><Thermometer size={17} aria-hidden="true" />{t("comfortPage.explanation")}</p>
     <ResourceState resource={resource} copy={{ loading: t("comfortPage.loading"), retry: t("comfortPage.retry"), error: t }}>

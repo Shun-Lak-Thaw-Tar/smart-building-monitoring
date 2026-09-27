@@ -119,7 +119,7 @@ export default function StaffDashboard() {
         <section className="section-space">
           <div className="panel-heading">
             <h2>{t("staffDashboard.buildingStatus")}</h2>
-            <Link to="/staff/monitoring">{t("staffDashboard.viewMonitoring")} →</Link>
+            <Link to="/staff/operations">{t("campusOperations")} →</Link>
           </div>
           <BuildingCards
             buildings={buildings}
@@ -129,7 +129,7 @@ export default function StaffDashboard() {
               equipment: t("staffDashboard.equipment"),
               openRequests: t("staffDashboard.openRequests"),
             }}
-            onSelect={() => navigate("/staff/monitoring")}
+            onSelect={() => navigate("/staff/operations")}
           />
         </section>
       </ResourceState>

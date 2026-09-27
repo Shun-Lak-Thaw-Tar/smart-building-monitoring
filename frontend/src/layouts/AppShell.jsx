@@ -30,23 +30,25 @@ const staff = [
   ["dashboard", "Dashboard", LayoutDashboard],
   ["requests/new", "New Request", CirclePlus],
   ["requests", "My Requests", ClipboardList],
-  ["monitoring", "Building Monitoring", Activity],
-];
-const admin = [
-  ["dashboard", "Dashboard", LayoutDashboard],
   ["operations", "Campus Operations", Building2],
   ["rooms", "Room Dashboard", DoorOpen],
-  ["equipment-intelligence", "Equipment Intelligence", HeartPulse],
+  ["alerts", "Alerts", BellRing],
+];
+const admin = [
+  ["__overview", "shell.overview"],
+  ["dashboard", "Dashboard", LayoutDashboard],
+  ["operations", "Campus Operations", Building2],
+  ["alerts", "Alerts", BellRing],
+  ["__operations", "shell.operations"],
   ["requests", "Requests", ClipboardList],
+  ["rooms", "Room Dashboard", DoorOpen],
   ["equipment", "Equipment", MonitorCog],
   ["maintenance", "Maintenance History", Wrench],
-  ["monitoring", "Building Monitoring", Activity],
-  ["staff", "Staff Accounts", Users],
-  ["alerts", "Alerts", BellRing],
-  ["energy", "Energy Intelligence", Zap],
-  ["comfort", "Comfort Intelligence", Thermometer],
+  ["__safety", "shell.safetyReporting"],
   ["safety", "Safety & Security", ShieldAlert],
   ["reports", "Reports", FileBarChart],
+  ["__administration", "shell.administration"],
+  ["staff", "Staff Accounts", Users],
 ];
 export default function AppShell() {
   const { user, logout } = useAuth(),
@@ -59,7 +61,7 @@ export default function AppShell() {
   const items = user.role === "ADMIN" ? admin : staff,
     prefix = `/${user.role.toLowerCase()}`;
   const title =
-    [...items]
+    [...items].filter(([route]) => !route.startsWith("__"))
       .sort((a, b) => b[0].length - a[0].length)
       .find(([route]) =>
         location.pathname.startsWith(`${prefix}/${route}`),
@@ -90,22 +92,24 @@ export default function AppShell() {
           <small>{t("shell.smartCampusFacilities")}</small>
         </div>
       </div>
-      <p className="nav-label">
-        {t(user.role === "ADMIN" ? "shell.campusManagement" : "shell.myWorkspace")}
-      </p>
-      <nav aria-label={t("shell.mainNavigation")}>
-        {items.map(([route, label, Icon]) => (
-          <NavLink
-            key={route}
-            to={`${prefix}/${route}`}
-            end={route === "requests"}
-            onClick={() => setOpen(false)}
-          >
-            <Icon size={20} aria-hidden="true" />
-            <span>{t({ Dashboard: "dashboard", "New Request": "newRequest", "My Requests": "myRequests", Requests: "requests", Equipment: "equipment", "Maintenance History": "maintenance", "Building Monitoring": "monitoring", "Staff Accounts": "staffAccounts", Alerts: "alerts", "Energy Intelligence": "energy", "Comfort Intelligence": "comfort", "Campus Operations": "campusOperations", "Room Dashboard": "rooms", "Equipment Intelligence": "equipmentIntelligence", "Safety & Security": "safety", Reports: "reports" }[label])}</span>
-          </NavLink>
-        ))}
-      </nav>
+      <div className="sidebar-nav">
+        <p className="nav-label">
+          {t(user.role === "ADMIN" ? "shell.campusManagement" : "shell.myWorkspace")}
+        </p>
+        <nav aria-label={t("shell.mainNavigation")}>
+          {items.map(([route, label, Icon]) => route.startsWith("__") ? <p className="nav-label sidebar-section" key={route}>{t(label)}</p> : (
+            <NavLink
+              key={route}
+              to={`${prefix}/${route}`}
+              end={route === "requests"}
+              onClick={() => setOpen(false)}
+            >
+              <Icon size={20} aria-hidden="true" />
+              <span>{t({ Dashboard: "dashboard", "New Request": "newRequest", "My Requests": "myRequests", Requests: "requests", Equipment: "equipment", "Maintenance History": "maintenance", "Staff Accounts": "staffAccounts", Alerts: "alerts", "Campus Operations": "campusOperations", "Room Dashboard": "rooms", "Safety & Security": "safety", Reports: "reports" }[label])}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </div>
       <div className="sidebar-bottom">
         <div className="user-info">
           <span className="avatar">{user.name.slice(0, 1)}</span>

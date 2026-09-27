@@ -164,6 +164,7 @@ export function Modal({ title, children, onClose, busy = false, closeLabel = "Cl
     <dialog
       ref={ref}
       aria-labelledby={titleId}
+      aria-modal="true"
       className={`modal ${closing ? "closing" : ""}`}
       onCancel={(e) => {
         e.preventDefault();

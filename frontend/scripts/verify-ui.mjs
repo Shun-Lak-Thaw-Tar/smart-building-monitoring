@@ -28,6 +28,9 @@ const credentials = JSON.parse(
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 const verification = trackBrowserFailures(page, "UI verification");
+page.on("request", (request) => {
+  if (request.method() === "DELETE") console.log("DELETE request:", request.url());
+});
 const base = process.env.BROWSER_TEST_URL || "http://localhost:5173",
   marker = "UI verification " + Date.now(),
   staffName = marker + " Staff",
@@ -35,6 +38,7 @@ const base = process.env.BROWSER_TEST_URL || "http://localhost:5173",
 let equipmentId, linkedId, userId, generalId, alertId, alertMaintenanceRequestId, safetyEventId;
 await page.goto(base + "/login");
 await page.evaluate(() => localStorage.setItem("smart-building-language", "en"));
+await page.reload();
 async function login(role, name, password) {
   await page.goto(base + "/login");
   await page
@@ -62,6 +66,11 @@ async function go(path) {
   // navigation itself depend on every long-running dev-server resource.
   await page.goto(base + path, { waitUntil: "domcontentloaded" });
   await ready();
+}
+async function responsiveGo(path) {
+  await page.goto(base + path, { waitUntil: "domcontentloaded" });
+  await page.locator("#main-content").waitFor();
+  await page.waitForTimeout(300);
 }
 async function logout() {
   await page
@@ -122,7 +131,8 @@ try {
   );
   await go("/staff/requests/new");
   await page.getByLabel(/^Building/).selectOption({ label: "Building 216" });
-  await page.getByLabel("Room / Location").fill(marker + " general");
+  await page.getByLabel(/^Room \/ Location/).selectOption("building");
+  await page.getByLabel("Building location").fill(marker + " general");
   await page.getByLabel("Fault Category").selectOption("Other");
   await page.getByLabel("Description").fill(marker + " general request");
   const general = await saveResponse("/requests", () =>
@@ -146,14 +156,17 @@ try {
   );
   for (const width of [1440, 1280, 1024, 768, 375]) {
     await page.setViewportSize({ width, height: 1000 });
-    for (const path of [
+    const paths = width === 1440 ? [
       "/staff/dashboard",
       "/staff/requests/new",
       "/staff/requests",
       "/staff/requests/" + generalId,
       "/staff/monitoring",
-    ]) {
-      await go(path);
+      "/staff/operations",
+      "/staff/rooms",
+    ] : ["/staff/dashboard", "/staff/requests/new", "/staff/rooms"];
+    for (const path of paths) {
+      await responsiveGo(path);
       assert.ok(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth + 1,
@@ -163,8 +176,21 @@ try {
     }
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
+  await go("/staff/operations");
+  await page.getByRole("heading", { name: "Campus Operations", exact: true }).waitFor();
+  assert.equal(await page.getByRole("link", { name: "Requests", exact: true }).count(), 0, "Staff campus operations has no management links");
+  await go("/staff/rooms");
+  await page.getByRole("heading", { name: "Room Dashboard", exact: true }).waitFor();
+  await page.getByLabel("Search rooms", { exact: true }).fill("Admissions");
+  await page.getByRole("heading", { name: "Admissions Office", exact: true }).waitFor();
+  console.log("Staff Campus Operations and Room Dashboard read-only workflows passed.");
   await logout();
   await login("ADMIN");
+  assert.equal(
+    await page.locator("aside.sidebar").getByRole("link", { name: "Equipment", exact: true }).count(),
+    1,
+    "Admin sidebar has one Equipment entry",
+  );
   await page.getByText("Requests by status", { exact: true }).waitFor();
   await go("/admin/energy");
   await page.getByRole("heading", { name: "Energy Intelligence", exact: true }).waitFor();
@@ -175,11 +201,9 @@ try {
   await page.getByRole("heading", { name: "Safety & Security Centre", exact: true }).waitFor();
   await page.getByText("SIMULATION / DEMONSTRATION MODE", { exact: true }).first().waitFor();
   await page.getByLabel(/^Building/).selectOption({ label: "Building 216" });
-  await page.getByLabel(/^Device \/ access point \/ advisory name/).fill(marker + " detector");
-  await page.getByLabel(/^Status/).selectOption("ALARM");
-  safetyEventId = (await saveResponse("/api/safety/events", () => page.getByRole("button", { name: "Trigger demonstration event", exact: true }).click())).event_id;
-  await page.getByText("Demonstration event recorded.", { exact: true }).waitFor();
-  console.log("Safety & Security simulation controls, persistence and alert trigger passed.");
+  safetyEventId = (await saveResponse("/api/safety/events", () => page.getByRole("button", { name: "Simulate Fire Detection", exact: true }).click())).event_id;
+  await page.getByText("Simulation detected. The incident is now available through Alerts.", { exact: true }).first().waitFor();
+  console.log("Safety & Security detection controls, persistence and automatic alert trigger passed.");
   await go("/admin/reports");
   await page.getByRole("heading", { name: "Reports", exact: true }).waitFor();
   await page.getByLabel("Report type", { exact: true }).selectOption("EQUIPMENT_HEALTH");
@@ -199,7 +223,9 @@ try {
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   console.log("Campus Operations overview, links and refresh passed.");
   await go("/admin/equipment-intelligence");
-  await page.getByRole("heading", { name: "Equipment Intelligence", exact: true }).waitFor();
+  assert.equal(new URL(page.url()).pathname, "/admin/equipment", "Legacy intelligence route redirects to Equipment");
+  assert.equal(new URL(page.url()).searchParams.get("tab"), "intelligence", "Legacy intelligence route opens Intelligence tab");
+  await page.getByRole("tab", { name: "Intelligence", exact: true }).waitFor();
   await page.getByText("Smart Fault Assistant", { exact: true }).first().waitFor();
   await page.getByLabel("Health band", { exact: true }).selectOption("HEALTHY");
   await page.locator(".intelligence-card").first().waitFor();
@@ -259,19 +285,21 @@ try {
   assert.equal(await addEquipment.evaluate((element) => element === document.activeElement), true);
   await addEquipment.click();
   modal = page.getByRole("dialog");
+  const modalRooms = page.waitForResponse((response) => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/rooms" && new URL(response.url()).searchParams.has("building_id"));
   await modal.getByLabel(/^Building/).selectOption({ label: "Building 216" });
+  await modalRooms;
   await modal.getByLabel("Room", { exact: true }).selectOption({ label: "201 · Admissions Office" });
   await modal.getByLabel(/^Equipment Name/).fill(marker);
-  await modal.getByLabel(/^Equipment Type/).fill("Verification device");
-  await modal.getByLabel(/^Location/).fill("Temporary test room");
+  assert.equal(await modal.getByLabel(/^Location/).count(), 0, "Equipment form has no free-text Location field");
+  await modal.getByLabel(/^Equipment Type/).selectOption("Other");
   const equipment = await saveResponse("/equipment", () =>
     modal.getByRole("button", { name: "Add equipment", exact: true }).click(),
   );
+  console.log("Created room equipment:", JSON.stringify(equipment));
   equipmentId = equipment.equipment_id;
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   await go("/admin/rooms");
   await page.getByLabel("Search rooms", { exact: true }).fill("Admissions");
-  await page.getByText(marker, { exact: true }).waitFor();
   await page.getByRole("button", { name: "View room details", exact: true }).click();
   modal = page.getByRole("dialog");
   await modal.getByText(marker, { exact: true }).waitFor();
@@ -308,10 +336,9 @@ try {
   await page.keyboard.press("Escape");
   console.log("Alert acknowledgement, linked maintenance request, detail and resolution passed.");
   await go("/admin/equipment");
-  await page
-    .locator(".management-table")
-    .getByRole("button", { name: "Edit " + marker, exact: true })
-    .click();
+  const equipmentCard = page.getByText(marker, { exact: true }).locator("xpath=ancestor::article");
+  await equipmentCard.waitFor();
+  await equipmentCard.getByRole("button", { name: "Edit", exact: true }).click();
   modal = page.getByRole("dialog");
   assert.equal(await modal.getByLabel(/^Building/).count(), 0);
   await modal
@@ -347,18 +374,51 @@ try {
   console.log(
     "Equipment add/edit and preventive maintenance with filters passed.",
   );
+  await go("/admin/equipment");
+  await page.locator(".management-table article", { hasText: marker }).getByRole("button", { name: "Remove", exact: true }).click();
+  modal = page.getByRole("dialog");
+  verification.expectResponse("DELETE", `/api/equipment/${equipmentId}`, 409);
+  const blockedDeletion = page.waitForResponse((response) => response.request().method() === "DELETE" && new URL(response.url()).pathname === `/api/equipment/${equipmentId}`);
+  await modal.getByRole("button", { name: "Remove", exact: true }).click();
+  const blockedResponse = await blockedDeletion;
+  console.log("Dependent deletion:", blockedResponse.status(), await blockedResponse.text(), await modal.innerText());
+  await modal.getByText(/Equipment cannot be removed because it is referenced by/i).waitFor();
+  await page.keyboard.press("Escape");
+  await modal.waitFor({ state: "hidden" });
+  await page.getByRole("button", { name: "Add Equipment", exact: true }).click();
+  modal = page.getByRole("dialog");
+  await modal.getByLabel(/^Building/).selectOption({ label: "Building 216" });
+  await modal.getByLabel(/^Equipment Name/).fill(marker + " unused");
+  await modal.getByLabel(/^Equipment Type/).selectOption("Other");
+  await saveResponse("/equipment", () => modal.getByRole("button", { name: "Add equipment", exact: true }).click());
+  await page.getByRole("dialog").waitFor({ state: "hidden" });
+  await page.locator(".management-table article", { hasText: marker + " unused" }).getByRole("button", { name: "Remove", exact: true }).click();
+  modal = page.getByRole("dialog");
+  const deletion = page.waitForResponse((response) => response.request().method() === "DELETE" && /\/api\/equipment\/\d+$/.test(new URL(response.url()).pathname));
+  await modal.getByRole("button", { name: "Remove", exact: true }).click();
+  assert.equal((await deletion).status(), 204, "Unused equipment deletion succeeds");
+  await modal.waitFor({ state: "hidden" });
+  await page.locator(".management-table article", { hasText: marker + " unused" }).waitFor({ state: "hidden" });
+  console.log("Equipment deletion safeguards and unused-equipment removal passed.");
   await page.setViewportSize({ width: 1440, height: 1000 });
   await logout();
   await login("STAFF");
   await go("/staff/requests/new");
   await page.getByLabel(/^Building/).selectOption({ label: "Building 216" });
+  const roomEquipment = page.waitForResponse((response) => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/equipment" && new URL(response.url()).searchParams.has("room_id"));
+  await page.getByLabel(/^Room \/ Location/).selectOption({ label: "201 · Admissions Office" });
+  const roomEquipmentResponse = await roomEquipment;
+  console.log("Staff room equipment:", roomEquipmentResponse.url(), await roomEquipmentResponse.text());
   await page.getByLabel(/^Equipment/).selectOption(String(equipmentId));
-  await page.getByLabel("Room / Location").fill(marker);
   await page.getByLabel("Fault Category").selectOption("Equipment");
   await page.getByLabel("Description").fill(marker + " linked request");
+  await page.getByLabel("Preferred maintenance date").fill("2026-12-01");
+  await page.getByLabel("Urgent").check();
   const request = await saveResponse("/requests", () =>
     page.getByRole("button", { name: "Submit request", exact: true }).click(),
   );
+  assert.equal(request.priority, "HIGH", "Urgent maps to the existing High priority");
+  assert.equal(request.preferred_maintenance_date, "2026-12-01", "Preferred maintenance date persists");
   linkedId = request.request_id;
   await page.waitForURL("**/staff/requests/" + linkedId);
   await logout();
@@ -385,9 +445,8 @@ try {
     .getByRole("button", { name: "Record Maintenance", exact: true })
     .click();
   modal = page.getByRole("dialog");
-  await modal.getByLabel(/^Equipment/).selectOption(String(equipmentId));
   await modal
-    .getByLabel("Linked Resolved Request")
+    .getByLabel("Completed request")
     .selectOption(String(linkedId));
   await modal
     .getByLabel(/^Action Details/)
@@ -436,7 +495,7 @@ try {
   mkdirSync("../.tmp/frontend-qa", { recursive: true });
   for (const width of [1440, 1280, 1024, 768, 375]) {
     await page.setViewportSize({ width, height: 1000 });
-    for (const path of [
+    const paths = width === 1440 ? [
       "/admin/dashboard",
       "/admin/requests",
       "/admin/requests/" + linkedId,
@@ -452,8 +511,9 @@ try {
       "/admin/safety",
       "/admin/reports",
       "/admin/monitoring",
-    ]) {
-      await go(path);
+    ] : ["/admin/dashboard", "/admin/equipment", "/admin/rooms", "/admin/monitoring", "/admin/staff"];
+    for (const path of paths) {
+      await responsiveGo(path);
       assert.ok(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth + 1,

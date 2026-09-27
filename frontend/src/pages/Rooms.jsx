@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Badge, EmptyState, Field, Modal, PageHeader, ResourceState } from "../components/UI";
 import { useLanguage } from "../context/LanguageContext";
+import { useAuth } from "../context/AuthContext";
 import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useResource } from "../hooks/useResource";
 import { buildingService } from "../services/buildingService";
@@ -14,6 +15,7 @@ const roomTypes = ["OFFICE", "MEETING_ROOM", "COMPUTER_LAB", "TECHNICAL_SERVER_R
 
 export default function Rooms() {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const [building, setBuilding] = useState("");
   const [floor, setFloor] = useState("");
   const [roomType, setRoomType] = useState("");
@@ -55,7 +57,7 @@ export default function Rooms() {
         {rooms.data?.length ? <div className="room-card-grid">{rooms.data.map((room) => <article className="room-card" key={room.room_id}><div className="room-card-top"><span className="room-number">{room.room_number}</span><span className="room-type">{t(room.room_type)}</span></div><h3>{room.room_name}</h3><div className="room-metadata"><span><Building2 size={15} aria-hidden="true" />{room.building.building_name}</span><span><Layers3 size={15} aria-hidden="true" />{t("roomsPage.floor")} {room.floor}</span><span><DoorOpen size={15} aria-hidden="true" />{t(room.room_type)}</span></div>{room.description && <p>{room.description}</p>}<RoomEquipmentSummary room={room} t={t} /><button className="text-button room-detail-button" onClick={() => setSelectedRoom(room)}>{t("roomsPage.viewDetails")}</button></article>)}</div> : <EmptyState title={t("roomsPage.empty")} description={t("roomsPage.emptyDescription")} />}
       </ResourceState>
     </section>
-    {selectedRoom && <RoomDetail room={selectedRoom} t={t} onClose={() => setSelectedRoom(null)} />}
+    {selectedRoom && <RoomDetail room={selectedRoom} t={t} admin={user.role === "ADMIN"} onClose={() => setSelectedRoom(null)} />}
   </>;
 }
 
@@ -68,6 +70,6 @@ function ActivityMetric({ icon: Icon, label, value, note }) {
   return <div><Icon size={14} aria-hidden="true" /><span>{label}</span><strong>{value}</strong>{note && <small>{note}</small>}</div>;
 }
 
-function RoomDetail({ room, t, onClose }) {
-  return <Modal title={`${room.room_number} · ${room.room_name}`} onClose={onClose} closeLabel={t("roomsPage.closeDetails")}><div className="room-detail"><p className="muted">{room.building.building_name} · {t("roomsPage.floor")} {room.floor} · {t(room.room_type)}</p>{room.description && <p>{room.description}</p>}<h3>{t("roomsPage.assignedEquipment")}</h3>{room.equipment?.length ? <ul className="room-detail-equipment">{room.equipment.map((item) => <li key={item.equipment_id}><div><strong>{item.equipment_name}</strong><span>{item.equipment_type} · {item.location}</span></div><Badge value={item.status} /></li>)}</ul> : <EmptyState title={t("roomsPage.noEquipment")} />}<h3>{t("roomsPage.openRequests")}</h3>{room.open_requests?.length ? <ul className="room-detail-activity">{room.open_requests.map((item) => <li key={item.request_id}><div><strong>#{item.request_id} · {item.fault_category}</strong><span>{item.room_location} · {dateTime(item.created_at)}</span></div><span className="activity-badges"><Badge value={item.priority} /><Badge value={item.status} /></span></li>)}</ul> : <p className="muted">{t("roomsPage.noOpenRequests")}</p>}<h3>{t("roomsPage.activeAlerts")}</h3>{room.active_alerts?.length ? <ul className="room-detail-activity">{room.active_alerts.map((item) => <li key={item.alert_id}><div><strong>{item.title}</strong><span>{item.equipment_name || t("roomsPage.buildingAlert")} · {dateTime(item.created_at)}</span></div><Badge value={item.severity} /></li>)}</ul> : <p className="muted">{t("roomsPage.noActiveAlerts")}</p>}<nav className="room-detail-links" aria-label={t("roomsPage.roomLinks")}><Link to="/admin/requests" onClick={onClose}><ClipboardList size={15} />{t("roomsPage.requests")}</Link><Link to="/admin/alerts" onClick={onClose}><BellRing size={15} />{t("roomsPage.alerts")}</Link><Link to="/admin/equipment" onClick={onClose}><MonitorCog size={15} />{t("roomsPage.equipmentLink")}</Link></nav></div></Modal>;
+function RoomDetail({ room, t, admin, onClose }) {
+  return <Modal title={`${room.room_number} · ${room.room_name}`} onClose={onClose} closeLabel={t("roomsPage.closeDetails")}><div className="room-detail"><p className="muted">{room.building.building_name} · {t("roomsPage.floor")} {room.floor} · {t(room.room_type)}</p>{room.description && <p>{room.description}</p>}<h3>{t("roomsPage.assignedEquipment")}</h3>{room.equipment?.length ? <ul className="room-detail-equipment">{room.equipment.map((item) => <li key={item.equipment_id}><div><strong>{item.equipment_name}</strong><span>{item.equipment_type} · {item.location}</span></div><Badge value={item.status} /></li>)}</ul> : <EmptyState title={t("roomsPage.noEquipment")} />}<h3>{t("roomsPage.openRequests")}</h3>{room.open_requests?.length ? <ul className="room-detail-activity">{room.open_requests.map((item) => <li key={item.request_id}><div><strong>#{item.request_id} · {item.fault_category}</strong><span>{item.room_location} · {dateTime(item.created_at)}</span></div><span className="activity-badges"><Badge value={item.priority} /><Badge value={item.status} /></span></li>)}</ul> : <p className="muted">{t("roomsPage.noOpenRequests")}</p>}<h3>{t("roomsPage.activeAlerts")}</h3>{room.active_alerts?.length ? <ul className="room-detail-activity">{room.active_alerts.map((item) => <li key={item.alert_id}><div><strong>{item.title}</strong><span>{item.equipment_name || t("roomsPage.buildingAlert")} · {dateTime(item.created_at)}</span></div><Badge value={item.severity} /></li>)}</ul> : <p className="muted">{t("roomsPage.noActiveAlerts")}</p>}{admin && <nav className="room-detail-links" aria-label={t("roomsPage.roomLinks")}><Link to="/admin/requests" onClick={onClose}><ClipboardList size={15} />{t("roomsPage.requests")}</Link><Link to="/admin/alerts" onClick={onClose}><BellRing size={15} />{t("roomsPage.alerts")}</Link><Link to="/admin/equipment" onClick={onClose}><MonitorCog size={15} />{t("roomsPage.equipmentLink")}</Link></nav>}</div></Modal>;
 }

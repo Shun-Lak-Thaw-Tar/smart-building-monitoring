@@ -121,6 +121,7 @@ def create_maintenance_request_from_alert(
             submitted_by=current_user.user_id,
             building_id=alert.building_id,
             equipment_id=alert.equipment_id,
+            room_id=alert.equipment.room_id if alert.equipment else None,
             room_location=data.room_location,
             fault_category=data.fault_category,
             description=data.description,

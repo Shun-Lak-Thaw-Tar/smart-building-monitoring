@@ -83,6 +83,26 @@ def seed_baseline(session: Session) -> dict[str, int]:
         elif room_number and existing.room_id != assigned_room_id:
             existing.room_id = assigned_room_id
 
+    # Every normal demo room receives the same useful baseline. Existing older
+    # demo items count by their semantic type, so rerunning never duplicates them.
+    baseline = (("Air Conditioning", "Air Conditioning"), ("Lighting", "Lighting"), ("Projector", "Projector"))
+    for name, room_number, room_name, *_ in ROOMS:
+        building_id = buildings[name].building_id
+        room_id = room_ids[(building_id, room_number)]
+        assigned = session.scalars(select(Equipment).where(Equipment.room_id == room_id)).all()
+        categories = {
+            "Air Conditioning" if ("hvac" in item.equipment_type.casefold() or "air condition" in item.equipment_type.casefold()) else
+            "Lighting" if ("light" in item.equipment_type.casefold() or "electrical" in item.equipment_type.casefold()) else
+            "Projector" if ("projector" in item.equipment_name.casefold() or "av" in item.equipment_type.casefold()) else None
+            for item in assigned
+        }
+        for category, equipment_type in baseline:
+            if category not in categories:
+                session.add(Equipment(building_id=building_id, room_id=room_id,
+                    equipment_name=f"{category} {name.replace('Building ', '').replace(' ', '-')}-{room_number}",
+                    equipment_type=equipment_type, location=f"Room {room_number}", status="OPERATIONAL"))
+                added["equipment"] += 1
+
     for offset, name in enumerate(BUILDINGS):
         for sample in range(5):
             recorded_at = BASELINE_START + timedelta(hours=sample)

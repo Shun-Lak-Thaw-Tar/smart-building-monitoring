@@ -18,7 +18,7 @@ class SafetyEvent(Base):
     __tablename__ = "safety_events"
     __table_args__ = (
         CheckConstraint("section IN ('FIRE_SAFETY', 'SECURITY_ACCESS', 'HAZARD_ADVISORY')", name="ck_safety_events_section"),
-        CheckConstraint("status IN ('NORMAL', 'FAULT', 'TESTING', 'OFFLINE', 'ALARM', 'ACTIVE', 'RESOLVED')", name="ck_safety_events_status"),
+        CheckConstraint("status IN ('NORMAL', 'FAULT', 'TESTING', 'OFFLINE', 'ALARM', 'GRANTED', 'DENIED', 'DOOR_OPEN', 'FORCED_ENTRY', 'ACTIVE', 'RESOLVED')", name="ck_safety_events_status"),
         CheckConstraint("severity IN ('INFO', 'WARNING', 'CRITICAL')", name="ck_safety_events_severity"),
     )
 

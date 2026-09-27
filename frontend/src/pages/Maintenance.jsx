@@ -23,7 +23,7 @@ export default function Maintenance() {
   const { t, language } = useLanguage();
   const [building, setBuilding] = useState(""),
     [equipment, setEquipment] = useState(""),
-    [open, setOpen] = useState(false);
+    [open, setOpen] = useState(false), [selectedRecord, setSelectedRecord] = useState(null);
   const options = useResource(() =>
     Promise.all([buildingService.list(), equipmentService.list()]),
   );
@@ -161,7 +161,7 @@ export default function Maintenance() {
                           )}
                         </td>
                         <td>{r.completed_by.name}</td>
-                        <td className="action-details">{r.action_details}</td>
+                        <td className="action-details">{r.action_details}<div className="form-actions"><button className="text-button" onClick={() => setSelectedRecord(r.history_id)}>{t("maintenancePage.viewMore")}</button><button className="text-button" onClick={() => exportRecord(r, t)}>{t("maintenancePage.exportReport")}</button></div></td>
                       </tr>
                     ))}
                   </tbody>
@@ -186,6 +186,7 @@ export default function Maintenance() {
                       )}
                       <small>{r.completed_by.name}</small>
                     </div>
+                    <div className="form-actions"><button className="text-button" onClick={() => setSelectedRecord(r.history_id)}>{t("maintenancePage.viewMore")}</button><button className="text-button" onClick={() => exportRecord(r, t)}>{t("maintenancePage.exportReport")}</button></div>
                   </div>
                 ))}
               </div>
@@ -205,19 +206,18 @@ export default function Maintenance() {
           }}
         />
       )}
+      {selectedRecord && <MaintenanceDetail historyId={selectedRecord} onClose={() => setSelectedRecord(null)} />}
     </>
   );
 }
+async function exportRecord(record, t) { const detail = await maintenanceService.get(record.history_id), request = detail.request; const rows = [[t("maintenancePage.recordId"), detail.history_id], [t("maintenancePage.completed"), detail.completed_at], [t("maintenancePage.completedBy"), detail.completed_by.name], [t("maintenancePage.actionDetails"), detail.action_details], [t("maintenancePage.equipment"), detail.equipment.equipment_name], [t("maintenancePage.equipmentType"), detail.equipment.equipment_type], [t("maintenancePage.status"), detail.equipment.status], [t("maintenancePage.building"), detail.equipment.building.building_name], [t("maintenancePage.room"), detail.equipment.room?.room_number || t("maintenancePage.notAssigned")], [t("maintenancePage.linkedRequest"), request?.request_id || t("maintenancePage.noLinkedRequest")], ...(request ? [[t("maintenancePage.submittedBy"), request.submitted_by.name], [t("maintenancePage.assignedTo"), request.assigned_to?.name || t("maintenancePage.unassigned")], [t("maintenancePage.category"), request.fault_category], [t("maintenancePage.priority"), request.priority], [t("maintenancePage.descriptionLabel"), request.description], [t("maintenancePage.created"), request.created_at], [t("maintenancePage.resolved"), request.updated_at], ...detail.timeline.map((entry) => [t("maintenancePage.requestTimeline"), `${entry.new_status} · ${entry.note || t("maintenancePage.noNote")} · ${entry.changed_at}`])] : [])]; const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(",")).join("\n"); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); const link = document.createElement("a"); link.href = url; link.download = `maintenance-record-${record.history_id}.csv`; link.click(); URL.revokeObjectURL(url); }
+function MaintenanceDetail({ historyId, onClose }) { const { t } = useLanguage(), detail = useResource(() => maintenanceService.get(historyId), historyId); if (detail.loading) return <Modal title={t("maintenancePage.maintenanceRecord")} onClose={onClose}><p>{t("maintenancePage.loading")}</p></Modal>; if (detail.error) return <Modal title={t("maintenancePage.maintenanceRecord")} onClose={onClose}><ErrorAlert message={detail.error} onRetry={detail.refresh} /></Modal>; const data = detail.data, request = data.request; return <Modal title={t("maintenancePage.maintenanceRecord")} onClose={onClose}><div className="maintenance-detail"><p><strong>{t("maintenancePage.recordId")} #{data.history_id}</strong></p><p>{t("maintenancePage.completed")}: {data.completed_at} · {t("maintenancePage.completedBy")}: {data.completed_by.name}</p><h3>{t("maintenancePage.actionDetails")}</h3><p>{data.action_details}</p><h3>{t("maintenancePage.equipment")}</h3><p>{data.equipment.equipment_name} · {t("maintenancePage.equipmentType")}: {data.equipment.equipment_type} · {t("maintenancePage.status")}: {data.equipment.status} · {t("maintenancePage.building")}: {data.equipment.building.building_name}{data.equipment.room ? ` · ${t("maintenancePage.room")}: ${data.equipment.room.room_number}` : ""}</p>{request ? <><h3>{t("maintenancePage.originalRequest")} #{request.request_id}</h3><p>{t("maintenancePage.submittedBy")}: {request.submitted_by.name} · {t("maintenancePage.assignedTo")}: {request.assigned_to?.name || t("maintenancePage.unassigned")}</p><p>{t("maintenancePage.category")}: {request.fault_category} · {t("maintenancePage.priority")}: {request.priority} · {t("maintenancePage.created")}: {request.created_at} · {t("maintenancePage.resolved")}: {request.updated_at}</p><p>{request.description}</p><h3>{t("maintenancePage.requestTimeline")}</h3><ul>{data.timeline.map((entry) => <li key={entry.status_history_id}>{entry.new_status} · {entry.note || t("maintenancePage.noNote")}</li>)}</ul></> : <p>{t("maintenancePage.noLinkedRequest")}</p>}</div></Modal> }
 function MaintenanceForm({ equipment, onClose, onSaved }) {
   const { t } = useLanguage();
-  const [selected, setSelected] = useState(""),
-    [linked, setLinked] = useState(""),
-    action = useAction(),
-    toast = useToast(),
-    requests = useResource(() => requestService.list({ status: "RESOLVED" }));
-  const matching = (requests.data || []).filter(
-    (r) => r.equipment?.equipment_id === Number(selected),
-  );
+  const [mode, setMode] = useState("REQUEST"), [selected, setSelected] = useState(""), [linked, setLinked] = useState(""), action = useAction(), toast = useToast();
+  const requests = useResource(maintenanceService.resolvedRequests);
+  const selectedRequest = (requests.data || []).find((request) => request.request_id === Number(linked));
+  const chooseRequest = (value) => { setLinked(value); const request = (requests.data || []).find((item) => item.request_id === Number(value)); setSelected(request?.equipment?.equipment_id ? String(request.equipment.equipment_id) : ""); };
   function submit(e) {
     e.preventDefault();
     const form = new FormData(e.currentTarget),
@@ -253,7 +253,11 @@ function MaintenanceForm({ equipment, onClose, onSaved }) {
         onInputCapture={(e) => e.target.setCustomValidity("")}
         onChangeCapture={(e) => e.target.setCustomValidity("")}
       >
-        <Field label={t("maintenancePage.equipment")} required>
+        <Field label={t("maintenancePage.maintenanceMode")}>{(id) => <select id={id} value={mode} onChange={(event) => { setMode(event.target.value); setLinked(""); setSelected(""); }}><option value="REQUEST">{t("maintenancePage.completedRequest")}</option><option value="PREVENTIVE">{t("maintenancePage.preventive")}</option></select>}</Field>
+        {mode === "REQUEST" ? <>
+        <Field label={t("maintenancePage.completedRequest")} required>{(id) => <select id={id} required value={linked} onChange={(event) => chooseRequest(event.target.value)} disabled={requests.loading || Boolean(requests.error)}><option value="">{requests.loading ? t("maintenancePage.loadingRequests") : t("maintenancePage.selectResolvedRequest")}</option>{(requests.data || []).map((request) => <option key={request.request_id} value={request.request_id}>#{request.request_id} — {request.equipment?.equipment_name || t("maintenancePage.generalIssue")} — {request.room?.room_number || request.room_location} — {request.building.building_name}</option>)}</select>}</Field>
+        {selectedRequest && <section className="panel maintenance-request-context"><h3>{t("maintenancePage.resolvedRequestDetails")}</h3><p>#{selectedRequest.request_id} · {selectedRequest.building.building_name} · {selectedRequest.room?.room_number || selectedRequest.room_location}</p><p>{selectedRequest.equipment?.equipment_name || t("maintenancePage.noSpecificEquipment")} · {selectedRequest.fault_category} · {t(selectedRequest.priority)}</p><p>{selectedRequest.description}</p><small>{t("maintenancePage.submittedBy")} {selectedRequest.submitted_by.name} · {t("maintenancePage.assignedTo")} {selectedRequest.assigned_to?.name || t("maintenancePage.unassigned")} · {t("maintenancePage.resolved")} {selectedRequest.updated_at}</small></section>}
+        </> : <Field label={t("maintenancePage.equipment")} required>
           {(id) => (
             <select
               id={id}
@@ -272,37 +276,7 @@ function MaintenanceForm({ equipment, onClose, onSaved }) {
               ))}
             </select>
           )}
-        </Field>
-        <Field
-          label={t("maintenancePage.linkedResolvedRequest")}
-          hint={
-            selected && !matching.length && !requests.loading
-              ? t("maintenancePage.noResolvedRequests")
-              : null
-          }
-        >
-          {(id) => (
-            <select
-              id={id}
-              value={linked}
-              onChange={(e) => setLinked(e.target.value)}
-              disabled={
-                !selected || requests.loading || Boolean(requests.error)
-              }
-            >
-              <option value="">
-                {requests.loading
-                  ? t("maintenancePage.loadingRequests")
-                  : t("maintenancePage.noLinkedRequest")}
-              </option>
-              {matching.map((r) => (
-                <option key={r.request_id} value={r.request_id}>
-                  {t("maintenancePage.request")} #{r.request_id} · {t(r.fault_category)}
-                </option>
-              ))}
-            </select>
-          )}
-        </Field>
+        </Field>}
         <ErrorAlert message={t(requests.error)} onRetry={requests.refresh} retryLabel={t("maintenancePage.retry")} />
         <Field label={t("maintenancePage.actionDetails")} required>
           {(id) => (

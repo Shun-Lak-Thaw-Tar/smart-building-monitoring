@@ -57,6 +57,17 @@ def test_equipment_permissions_and_missing(auth_db, tokens, api_request, equipme
     assert response.status_code == 404 and response.json() == {"detail": "Equipment not found"}
 
 
+def test_admin_can_remove_unused_equipment_but_not_operational_history(auth_db, tokens, api_request, equipment_body):
+    unused = api_request("/api/equipment", "POST", headers=tokens["ADMIN"], json=equipment_body)
+    equipment_id = unused.json()["equipment_id"]
+    assert api_request(f"/api/equipment/{equipment_id}", "DELETE", headers=tokens["ADMIN"]).status_code == 204
+    assert api_request(f"/api/equipment/{equipment_id}", headers=tokens["ADMIN"]).status_code == 404
+    assert api_request("/api/requests", "POST", headers=tokens["STAFF"], json={"building_id": 1, "room_id": 1, "equipment_id": 1, "room_location": "Room 201", "fault_category": "Equipment", "description": "Referenced equipment", "priority": "HIGH"}).status_code == 201
+    blocked = api_request("/api/equipment/1", "DELETE", headers=tokens["ADMIN"])
+    assert blocked.status_code == 409 and "maintenance requests" in blocked.json()["detail"]
+    assert api_request("/api/equipment/1", "DELETE", headers=tokens["STAFF"]).status_code == 403
+
+
 def test_equipment_room_assignment_and_same_building_validation(auth_db, tokens, api_request, equipment_body):
     room = api_request("/api/rooms?building_id=1&search=Admissions", headers=tokens["ADMIN"])
     assert room.status_code == 200 and len(room.json()) == 1

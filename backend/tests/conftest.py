@@ -40,7 +40,7 @@ def isolated_test_database():
             ))
         with Session(engine) as session, session.begin():
             assert seed_baseline(session) == {
-                "buildings": 3, "equipment": 9, "environmental_readings": 15, "rooms": 12,
+                "buildings": 3, "equipment": 40, "environmental_readings": 15, "rooms": 12,
             }
         yield
     finally:

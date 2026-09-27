@@ -42,6 +42,9 @@ export default function RequestDetail() {
           day: "2-digit", month: "short", year: "numeric", hour: "numeric", minute: "2-digit",
         }).format(new Date(value))
       : copy("dateUnavailable");
+  const displayDateOnly = (value) => value
+    ? new Intl.DateTimeFormat(language === "my" ? "my-MM" : undefined, { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T00:00:00`))
+    : copy("notSpecified");
   return (
     <>
       <Link
@@ -77,6 +80,7 @@ export default function RequestDetail() {
                   {[
                     [copy("building"), request.building.building_name],
                     [copy("room"), request.room_location],
+                    [copy("preferredDate"), displayDateOnly(request.preferred_maintenance_date)],
                     [
                       copy("equipment"),
                       request.equipment?.equipment_name ||

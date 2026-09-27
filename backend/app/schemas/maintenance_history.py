@@ -2,7 +2,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 from app.schemas.auth import UserBrief
 from app.schemas.building import BuildingBrief
-from app.schemas.maintenance_request import RequestStatus
+from app.schemas.maintenance_request import MaintenanceRequestResponse, RequestStatus, RequestStatusHistoryResponse, RoomBrief
 from app.schemas.ids import DatabaseId
 
 
@@ -10,7 +10,10 @@ class EquipmentMaintenanceBrief(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     equipment_id: int
     equipment_name: str
+    equipment_type: str
+    status: str
     building: BuildingBrief
+    room: RoomBrief | None = None
 
 
 class MaintenanceRequestBrief(BaseModel):
@@ -34,3 +37,12 @@ class MaintenanceHistoryCreate(BaseModel):
     equipment_id: DatabaseId
     request_id: DatabaseId | None = None
     action_details: str = Field(min_length=1, max_length=2000)
+
+
+class ResolvedRequestOption(MaintenanceRequestResponse):
+    pass
+
+
+class MaintenanceHistoryDetailResponse(MaintenanceHistoryResponse):
+    request: MaintenanceRequestResponse | None
+    timeline: list[RequestStatusHistoryResponse] = []

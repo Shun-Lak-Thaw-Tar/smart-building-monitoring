@@ -34,6 +34,22 @@ def test_staff_create_initial_history(auth_db, tokens, api_request, payload):
     assert api_request("/api/requests", "POST", headers=tokens["ADMIN"], json=payload).status_code == 403
 
 
+def test_staff_can_link_room_and_prefer_date_with_room_matched_equipment(auth_db, tokens, api_request, payload):
+    body = payload | {"room_id": 1, "equipment_id": 1, "room_location": "Room 201 · Admissions Office", "preferred_maintenance_date": "2026-10-15"}
+    response = api_request("/api/requests", "POST", headers=tokens["STAFF"], json=body)
+    assert response.status_code == 201
+    result = response.json()
+    assert result["room"]["room_id"] == 1
+    assert result["preferred_maintenance_date"] == "2026-10-15"
+
+    for change, detail in (
+        ({"room_id": 5}, "Room does not belong to the selected building"),
+        ({"room_id": 1, "equipment_id": 2}, "Equipment does not belong to the selected room"),
+    ):
+        invalid = api_request("/api/requests", "POST", headers=tokens["STAFF"], json=body | change)
+        assert invalid.status_code == 400 and invalid.json() == {"detail": detail}
+
+
 @pytest.mark.parametrize("change,status,detail", [
     ({"building_id": 999}, 404, "Building not found"),
     ({"equipment_id": 999}, 404, "Equipment not found"),

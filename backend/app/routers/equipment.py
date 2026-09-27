@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.dependencies import require_admin
 from app.db.session import get_session
-from app.models import Building, Equipment, MaintenanceHistory, Room
+from app.models import Alert, Building, Equipment, MaintenanceHistory, MaintenanceRequest, Room
 from app.schemas.equipment import EquipmentCreate, EquipmentResponse, EquipmentUpdate
 from app.schemas.equipment_intelligence import EquipmentIntelligenceResponse
 from app.services.equipment_intelligence import equipment_intelligence
@@ -41,7 +41,8 @@ def list_equipment(
     "/intelligence", response_model=list[EquipmentIntelligenceResponse], summary="List equipment intelligence",
 )
 def list_equipment_intelligence(session: Annotated[Session, Depends(get_session)]):
-    return equipment_intelligence(session)
+    with write_transaction(session):
+        return equipment_intelligence(session)
 
 
 @router.get(
@@ -62,10 +63,11 @@ def get_equipment(equipment_id: PathDatabaseId, session: Annotated[Session, Depe
     responses={404: {"description": "Equipment not found"}},
 )
 def get_equipment_intelligence(equipment_id: PathDatabaseId, session: Annotated[Session, Depends(get_session)]):
-    intelligence = equipment_intelligence(session, equipment_id)
-    if not intelligence:
-        raise HTTPException(status_code=404, detail="Equipment not found")
-    return intelligence[0]
+    with write_transaction(session):
+        intelligence = equipment_intelligence(session, equipment_id)
+        if not intelligence:
+            raise HTTPException(status_code=404, detail="Equipment not found")
+        return intelligence[0]
 
 
 def validate_room_assignment(session: Session, building_id: int, room_id: int | None) -> None:
@@ -86,11 +88,32 @@ def create_equipment(data: EquipmentCreate, session: Annotated[Session, Depends(
         if building is None:
             raise HTTPException(404, "Building not found")
         validate_room_assignment(session, data.building_id, data.room_id)
-        equipment = Equipment(**data.model_dump())
+        room = session.get(Room, data.room_id) if data.room_id else None
+        values = data.model_dump()
+        values["location"] = data.location or (f"Room {room.room_number}" if room else "Building-wide")
+        equipment = Equipment(**values)
         session.add(equipment)
         session.flush()
         response = EquipmentResponse.model_validate(equipment)
     return response
+
+
+@router.delete("/{equipment_id}", status_code=204, summary="Remove unused equipment (ADMIN)",
+               dependencies=[Depends(require_admin)], responses={403: {"description": "Insufficient permissions"}, 404: {"description": "Equipment not found"}, 409: {"description": "Equipment has operational history"}})
+def delete_equipment(equipment_id: PathDatabaseId, session: Annotated[Session, Depends(get_session)]):
+    with write_transaction(session):
+        equipment = session.get(Equipment, equipment_id)
+        if equipment is None:
+            raise HTTPException(404, "Equipment not found")
+        dependencies = {
+            "maintenance requests": session.scalar(select(MaintenanceRequest.request_id).where(MaintenanceRequest.equipment_id == equipment_id).limit(1)),
+            "maintenance history": session.scalar(select(MaintenanceHistory.history_id).where(MaintenanceHistory.equipment_id == equipment_id).limit(1)),
+            "alerts": session.scalar(select(Alert.alert_id).where(Alert.equipment_id == equipment_id).limit(1)),
+        }
+        used_by = [name for name, value in dependencies.items() if value is not None]
+        if used_by:
+            raise HTTPException(409, "Equipment cannot be removed because it is referenced by " + ", ".join(used_by))
+        session.delete(equipment)
 
 
 @router.patch("/{equipment_id}", response_model=EquipmentResponse, summary="Update equipment (ADMIN)",

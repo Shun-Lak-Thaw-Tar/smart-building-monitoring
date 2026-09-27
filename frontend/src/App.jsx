@@ -64,7 +64,10 @@ function Application() {
                     <Route path="requests/new" element={<NewRequest />} />
                     <Route path="requests" element={<Requests />} />
                     <Route path="requests/:id" element={<RequestDetail />} />
-                    <Route path="monitoring" element={<Monitoring />} />
+                    <Route path="monitoring" element={<Navigate to="/staff/operations" replace />} />
+                    <Route path="operations" element={<CampusOperations />} />
+                    <Route path="rooms" element={<Rooms />} />
+                    <Route path="alerts" element={<Alerts />} />
                   </Route>
                 </Route>
                 <Route element={<RoleRoute role="ADMIN" />}>
@@ -73,11 +76,11 @@ function Application() {
                     <Route path="maintenance" element={<Maintenance />} />
                     <Route path="staff" element={<StaffAccounts />} />
                     <Route path="alerts" element={<Alerts />} />
-                    <Route path="energy" element={<Energy />} />
-                    <Route path="comfort" element={<Comfort />} />
+                    <Route path="energy" element={<Navigate to="/admin/operations?tab=energy" replace />} />
+                    <Route path="comfort" element={<Navigate to="/admin/operations?tab=comfort" replace />} />
                     <Route path="operations" element={<CampusOperations />} />
                     <Route path="rooms" element={<Rooms />} />
-                    <Route path="equipment-intelligence" element={<EquipmentIntelligence />} />
+                    <Route path="equipment-intelligence" element={<Navigate to="/admin/equipment?tab=intelligence" replace />} />
                     <Route path="safety" element={<SafetySecurity />} />
                     <Route path="reports" element={<Reports />} />
                     <Route

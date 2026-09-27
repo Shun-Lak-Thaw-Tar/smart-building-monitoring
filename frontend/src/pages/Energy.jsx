@@ -9,7 +9,7 @@ import { Badge, EmptyState, PageHeader, ResourceState } from "../components/UI";
 
 const threshold = 20;
 
-export default function Energy() {
+export default function Energy({ embedded = false }) {
   const { t, language } = useLanguage();
   const resource = useResource(energyService.buildings);
   const [selectedId, setSelectedId] = useState(null);
@@ -20,7 +20,7 @@ export default function Energy() {
   const highUsage = summaries.filter((item) => item.condition === "HIGH_USAGE").length;
   const formatDate = (value) => new Intl.DateTimeFormat(language === "my" ? "my-MM" : undefined, { day: "2-digit", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(value));
   return <>
-    <PageHeader eyebrow={t("energyPage.eyebrow")} title={t("energyPage.title")} description={t("energyPage.description")}><button className="button secondary" onClick={() => resource.refresh({ background: true })} disabled={resource.loading}><RefreshCw size={16} />{t("energyPage.refresh")}</button></PageHeader>
+    {!embedded && <PageHeader eyebrow={t("energyPage.eyebrow")} title={t("energyPage.title")} description={t("energyPage.description")}><button className="button secondary" onClick={() => resource.refresh({ background: true })} disabled={resource.loading}><RefreshCw size={16} />{t("energyPage.refresh")}</button></PageHeader>}
     <section className="stat-grid energy-stat-grid" aria-label={t("energyPage.summary")}><div className="stat-card"><div className="stat-top"><span>{t("energyPage.highUsage")}</span><Zap size={20} aria-hidden="true" /></div><strong>{highUsage}</strong><small>{t("energyPage.highUsageNote")}</small></div><div className="stat-card"><div className="stat-top"><span>{t("energyPage.rule")}</span><Zap size={20} aria-hidden="true" /></div><strong>+{threshold}%</strong><small>{t("energyPage.ruleNote")}</small></div></section>
     <p className="energy-rule"><Zap size={17} aria-hidden="true" />{t("energyPage.explanation")}</p>
     <ResourceState resource={resource} copy={{ loading: t("energyPage.loading"), retry: t("energyPage.retry"), error: t }}>

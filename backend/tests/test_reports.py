@@ -16,3 +16,19 @@ def test_admin_reports_and_empty_filters(auth_db, tokens, api_request, report_ty
 
 def test_staff_cannot_access_reports(auth_db, tokens, api_request):
     assert api_request("/api/reports/MAINTENANCE_REQUESTS", headers=tokens["STAFF"]).status_code == 403
+
+
+@pytest.mark.parametrize(
+    ("report_type", "query"),
+    [
+        ("MAINTENANCE_REQUESTS", "status=RESOLVED&category=Lighting"),
+        ("EQUIPMENT_HEALTH", "status=OPERATIONAL&health_band=HEALTHY"),
+        ("ENERGY_SUSTAINABILITY", "status=NORMAL"),
+        ("COMFORT", "status=COMFORTABLE"),
+        ("ALERTS_INCIDENTS", "status=ACTIVE&category=EQUIPMENT&severity=CRITICAL"),
+        ("SAFETY_SECURITY", "status=ALARM&category=FIRE_SAFETY&severity=CRITICAL&event_type=SMOKE_DETECTOR"),
+    ],
+)
+def test_report_specific_selector_filters_are_accepted(auth_db, tokens, api_request, report_type, query):
+    response = api_request(f"/api/reports/{report_type}?{query}", headers=tokens["ADMIN"])
+    assert response.status_code == 200

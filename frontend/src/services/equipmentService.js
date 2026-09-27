@@ -4,4 +4,5 @@ export const equipmentService = {
   create: (body) => apiClient.post("/equipment", body).then((r) => r.data),
   update: (id, body) =>
     apiClient.patch(`/equipment/${id}`, body).then((r) => r.data),
+  remove: (id) => apiClient.delete(`/equipment/${id}`),
 };

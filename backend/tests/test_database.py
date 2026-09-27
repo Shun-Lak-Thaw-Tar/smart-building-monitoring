@@ -72,6 +72,7 @@ def test_foreign_keys_indexes_and_checks(connection):
         ("maintenance_requests", "submitted_by"): ("users", "user_id", "RESTRICT"),
         ("maintenance_requests", "assigned_to"): ("users", "user_id", "SET NULL"),
         ("maintenance_requests", "equipment_id"): ("equipment", "equipment_id", "SET NULL"),
+        ("maintenance_requests", "room_id"): ("rooms", "room_id", "SET NULL"),
         ("request_status_history", "request_id"): ("maintenance_requests", "request_id", "CASCADE"),
         ("request_status_history", "changed_by"): ("users", "user_id", "RESTRICT"),
         ("maintenance_history", "equipment_id"): ("equipment", "equipment_id", "RESTRICT"),
@@ -93,7 +94,7 @@ def test_foreign_keys_indexes_and_checks(connection):
     assert actual == expected_fks
     expected_indexes = {
         "equipment": {("building_id",), ("room_id",), ("status",)},
-        "maintenance_requests": {(c,) for c in ("submitted_by", "building_id", "equipment_id", "assigned_to", "status", "priority", "created_at")},
+        "maintenance_requests": {(c,) for c in ("submitted_by", "building_id", "equipment_id", "room_id", "assigned_to", "status", "priority", "created_at")},
         "request_status_history": {(c,) for c in ("request_id", "changed_by", "changed_at")},
         "maintenance_history": {(c,) for c in ("equipment_id", "request_id", "completed_by", "completed_at")},
         "environmental_readings": {("building_id", "recorded_at")},
@@ -207,14 +208,14 @@ def test_seed_counts_and_idempotency(connection):
         after = {name: session.scalar(select(func.count()).select_from(table)) for name, table in Base.metadata.tables.items()}
         assert before == after
         assert {name: after[name] for name in ("buildings", "equipment", "environmental_readings", "rooms")} == {
-            "buildings": 3, "equipment": 9, "environmental_readings": 15, "rooms": 12}
+            "buildings": 3, "equipment": 40, "environmental_readings": 15, "rooms": 12}
         assert after["maintenance_history"] == before["maintenance_history"]
         assert set(session.scalars(select(Building.building_name))) == set(BUILDINGS)
-        assert session.scalar(select(func.count()).select_from(Equipment).join(Building)) == 9
+        assert session.scalar(select(func.count()).select_from(Equipment).join(Building)) == 40
         assert session.scalar(select(func.count()).select_from(EnvironmentalReading).join(Building)) == 15
         assert session.scalar(select(func.count()).select_from(Room).join(Building)) == 12
         assigned = session.scalars(select(Equipment).where(Equipment.room_id.is_not(None))).all()
-        assert len(assigned) == 5 and all(item.room_id is not None for item in assigned)
+        assert len(assigned) == 36 and all(item.room_id is not None for item in assigned)
         building_ids = {building.building_name: building.building_id for building in session.scalars(select(Building)).all()}
         assert {(row[0], row[1]) for row in session.execute(select(Room.building_id, Room.room_number))} == {
             (building_ids[name], room_number) for name, room_number, *_ in ROOMS

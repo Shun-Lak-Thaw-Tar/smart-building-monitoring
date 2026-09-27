@@ -19,8 +19,9 @@ def test_monitoring_baseline(auth_db, tokens, api_request, role):
     assert [row["building"]["building_id"] for row in rows] == [1, 2, 3]
     for row in rows:
         building_id = row["building"]["building_id"]
-        assert row["equipment_summary"]["total"] == 3
-        assert sum(row["equipment_summary"][key] for key in ("operational", "maintenance_required", "out_of_service")) == 3
+        expected_equipment = connection.scalar(select(func.count()).select_from(Equipment).where(Equipment.building_id == building_id))
+        assert row["equipment_summary"]["total"] == expected_equipment
+        assert sum(row["equipment_summary"][key] for key in ("operational", "maintenance_required", "out_of_service")) == expected_equipment
         assert row["request_summary"]["total"] == connection.scalar(select(func.count()).select_from(MaintenanceRequest).where(MaintenanceRequest.building_id == building_id))
         assert datetime.fromisoformat(row["latest_environment"]["recorded_at"]) == connection.scalar(select(func.max(EnvironmentalReading.recorded_at)).where(EnvironmentalReading.building_id == building_id))
     assert rows[1]["overall_status"] == "CRITICAL"  # Out-of-service projector.

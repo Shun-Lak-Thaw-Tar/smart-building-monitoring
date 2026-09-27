@@ -12,7 +12,7 @@ import { dateTime } from "../utils/format";
 
 const bands = ["HEALTHY", "ATTENTION", "HIGH_RISK"];
 
-export default function EquipmentIntelligence() {
+export function EquipmentIntelligencePanel() {
   const { t } = useLanguage();
   const [search, setSearch] = useState(""), [building, setBuilding] = useState(""), [room, setRoom] = useState(""), [band, setBand] = useState("");
   const intelligence = useResource(equipmentIntelligenceService.list);
@@ -22,13 +22,14 @@ export default function EquipmentIntelligence() {
   const items = (intelligence.data || []).filter((item) => (!building || String(item.equipment.building.building_id) === building) && (!room || String(item.equipment.room?.room_id) === room) && (!band || item.health_band === band) && [item.equipment.equipment_name, item.equipment.equipment_type, item.equipment.location, item.equipment.building.building_name, item.equipment.room?.room_name].filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase()));
   const clear = () => { setSearch(""); setBuilding(""); setRoom(""); setBand(""); };
   return <>
-    <PageHeader eyebrow={t("equipmentIntelligence.eyebrow")} title={t("equipmentIntelligence.title")} description={t("equipmentIntelligence.description")} />
     <p className="intelligence-rule"><HeartPulse size={17} aria-hidden="true" />{t("equipmentIntelligence.rule")}</p>
     <section className="panel filter-panel" aria-label={t("equipmentIntelligence.filters")}><div className="filters intelligence-filters"><Field label={t("equipmentIntelligence.search")}>{(id) => <div className="search-field"><Search size={18} aria-hidden="true" /><input id={id} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t("equipmentIntelligence.searchPlaceholder")} /></div>}</Field><Field label={t("equipmentIntelligence.building")}>{(id) => <select id={id} value={building} onChange={(event) => { setBuilding(event.target.value); setRoom(""); }}><option value="">{t("equipmentIntelligence.allBuildings")}</option>{buildings.data?.map((item) => <option key={item.building_id} value={item.building_id}>{item.building_name}</option>)}</select>}</Field><Field label={t("equipmentIntelligence.room")}>{(id) => <select id={id} value={room} onChange={(event) => setRoom(event.target.value)} disabled={!building}><option value="">{t("equipmentIntelligence.allRooms")}</option>{rooms.data?.map((item) => <option key={item.room_id} value={item.room_id}>{item.room_number} · {item.room_name}</option>)}</select>}</Field><Field label={t("equipmentIntelligence.healthBand")}>{(id) => <select id={id} value={band} onChange={(event) => setBand(event.target.value)}><option value="">{t("equipmentIntelligence.allBands")}</option>{bands.map((item) => <option key={item} value={item}>{t(item)}</option>)}</select>}</Field><button className="text-button" onClick={clear}>{t("equipmentIntelligence.clear")}</button></div></section>
     <div className="panel-heading intelligence-results"><h2>{t("equipmentIntelligence.equipmentOverview")}</h2><span className="count-label">{items.length} {t(items.length === 1 ? "equipmentIntelligence.item" : "equipmentIntelligence.items")}</span></div>
     <ResourceState resource={intelligence} copy={{ loading: t("equipmentIntelligence.loading"), retry: t("equipmentIntelligence.retry"), error: t }}>{items.length ? <section className="intelligence-grid">{items.map((item) => <IntelligenceCard key={item.equipment.equipment_id} item={item} t={t} />)}</section> : <EmptyState title={t("equipmentIntelligence.empty")} />}</ResourceState>
   </>;
 }
+
+export default function EquipmentIntelligence() { return <EquipmentIntelligencePanel />; }
 
 function IntelligenceCard({ item, t }) {
   const { equipment } = item;

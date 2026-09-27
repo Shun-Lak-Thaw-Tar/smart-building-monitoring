@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import func, select
 
-from app.models import Equipment, MaintenanceHistory, MaintenanceRequest
+from app.models import Alert, Equipment, MaintenanceHistory, MaintenanceRequest
 from test_auth import ADMIN_ID, STAFF_ID, auth_db, tokens
 
 pytestmark = pytest.mark.database
@@ -11,7 +12,7 @@ pytestmark = pytest.mark.database
 def test_equipment_intelligence_healthy_and_staff_admin_read_access(auth_db, tokens, api_request):
     for role in ("STAFF", "ADMIN"):
         listed = api_request("/api/equipment/intelligence", headers=tokens[role])
-        assert listed.status_code == 200 and len(listed.json()) == 9
+        assert listed.status_code == 200 and len(listed.json()) == 40
         healthy = next(item for item in listed.json() if item["equipment"]["equipment_id"] == 1)
         assert healthy["score"] == 100 and healthy["health_band"] == "HEALTHY"
         assert healthy["reasons"] == [{"code": "HEALTHY_NO_CURRENT_CONCERNS", "count": None}]
@@ -45,6 +46,12 @@ def test_equipment_intelligence_status_requests_history_and_repeated_faults(auth
     assert body["recent_maintenance"][0]["action_details"] == "Recent cooling inspection"
     assert "KEEP_OUT_OF_SERVICE_UNTIL_INSPECTED" in body["suggestions"]
     assert "REVIEW_REPEATED_FAULT_PATTERN" in body["suggestions"]
+    alerts = api_request("/api/alerts?category=EQUIPMENT", headers=tokens["ADMIN"])
+    assert alerts.status_code == 200
+    assert [item["equipment"]["equipment_id"] for item in alerts.json()] == [1]
+    assert alerts.json()[0]["severity"] == "CRITICAL" and alerts.json()[0]["status"] == "ACTIVE"
+    assert api_request("/api/equipment/1/intelligence", headers=tokens["ADMIN"]).status_code == 200
+    assert connection.scalar(select(func.count()).select_from(Alert).where(Alert.equipment_id == 1, Alert.category == "EQUIPMENT")) == 1
 
 
 def test_equipment_intelligence_attention_and_no_data_case(auth_db, tokens, api_request):

@@ -140,7 +140,7 @@ export default function AdminDashboard() {
         <section className="section-space">
           <div className="panel-heading">
             <h2>{t("adminDashboard.buildingStatus")}</h2>
-            <Link to="/admin/monitoring">{t("adminDashboard.viewMonitoring")} →</Link>
+            <Link to="/admin/operations">{t("campusOperations")} →</Link>
           </div>
           <BuildingCards
             buildings={buildings}
@@ -150,7 +150,7 @@ export default function AdminDashboard() {
               equipment: t("adminDashboard.buildingEquipment"),
               openRequests: t("adminDashboard.buildingOpenRequests"),
             }}
-            onSelect={() => navigate("/admin/monitoring")}
+            onSelect={() => navigate("/admin/operations")}
           />
         </section>
       </ResourceState>

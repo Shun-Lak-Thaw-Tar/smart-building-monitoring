@@ -83,8 +83,10 @@ def test_linked_request_validation(auth_db, tokens, api_request, request_equipme
         assert response.json() == {"detail": detail}
     else:
         assert response.json()["request"] == {"request_id": 2_000_000_040, "status": "RESOLVED"}
-        assert api_request("/api/maintenance-history", "POST", headers=tokens["ADMIN"], json=body).status_code == 201
-        assert connection.scalar(select(func.count()).select_from(MaintenanceHistory)) == 2
+        duplicate = api_request("/api/maintenance-history", "POST", headers=tokens["ADMIN"], json=body)
+        assert duplicate.status_code == 409
+        assert duplicate.json() == {"detail": "A maintenance record already exists for this resolved request"}
+        assert connection.scalar(select(func.count()).select_from(MaintenanceHistory)) == 1
     assert connection.scalar(select(MaintenanceRequest.status).where(MaintenanceRequest.request_id == 2_000_000_040)) == status
     assert connection.scalar(select(func.count()).select_from(RequestStatusHistory)) == 0
 

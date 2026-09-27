@@ -53,8 +53,8 @@ def test_campus_overview_includes_building_without_environmental_data(auth_db, t
     }
 
 
-def test_campus_operations_is_admin_only(auth_db, tokens, api_request):
+def test_campus_operations_is_available_read_only_to_staff(auth_db, tokens, api_request):
     staff = api_request("/api/campus/overview", headers=tokens["STAFF"])
-    assert staff.status_code == 403 and staff.json() == {"detail": "Insufficient permissions"}
+    assert staff.status_code == 200
     anonymous = api_request("/api/campus/overview")
     assert anonymous.status_code == 401

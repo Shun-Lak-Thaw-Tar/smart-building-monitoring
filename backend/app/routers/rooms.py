@@ -17,6 +17,8 @@ router = APIRouter(
 
 
 def room_for_request(request: MaintenanceRequest, room_ids: dict[tuple[int, str], int]) -> int | None:
+    if request.room_id is not None:
+        return request.room_id
     if request.equipment is not None and request.equipment.room_id is not None:
         return request.equipment.room_id
     for (building_id, room_number), room_id in room_ids.items():

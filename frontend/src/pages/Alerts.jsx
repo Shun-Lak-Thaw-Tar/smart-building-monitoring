@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { BellRing, CirclePlus, Eye, MapPin } from "lucide-react";
 import { useResource } from "../hooks/useResource";
 import { useRefreshOnFocus } from "../hooks/useRefreshOnFocus";
 import { useAction } from "../hooks/useAction";
 import { useToast } from "../context/ToastContext";
 import { useLanguage } from "../context/LanguageContext";
+import { useAuth } from "../context/AuthContext";
 import { alertService } from "../services/alertService";
 import { buildingService } from "../services/buildingService";
 import { equipmentService } from "../services/equipmentService";
@@ -18,6 +19,9 @@ const statuses = ["ACTIVE", "ACKNOWLEDGED", "RESOLVED"];
 
 export default function Alerts() {
   const { t } = useLanguage();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const readOnly = user.role === "STAFF";
   const [filters, setFilters] = useState({ category: "", severity: "", status: "" });
   const [creating, setCreating] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -26,11 +30,22 @@ export default function Alerts() {
   useRefreshOnFocus(resource.refresh, t("alertsPage.refreshError"));
   const activeCount = (resource.data || []).filter((alert) => alert.status !== "RESOLVED").length;
   const updateSelected = (alert) => { setSelected(alert); resource.refresh({ background: true }); };
+  const linkedAlertId = Number(searchParams.get("alert"));
+  useEffect(() => {
+    if (!Number.isInteger(linkedAlertId) || linkedAlertId <= 0 || selected?.alert_id === linkedAlertId) return;
+    let active = true;
+    alertService.get(linkedAlertId).then((alert) => active && setSelected(alert)).catch(() => active && setSearchParams({}, { replace: true }));
+    return () => { active = false; };
+  }, [linkedAlertId, selected?.alert_id, setSearchParams]);
+  const closeSelected = () => {
+    setSelected(null);
+    if (searchParams.has("alert")) setSearchParams({}, { replace: true });
+  };
   const updateFilter = (name, value) => setFilters((current) => ({ ...current, [name]: value }));
   return (
     <>
-      <PageHeader eyebrow={t("alertsPage.eyebrow")} title={t("alertsPage.title")} description={t("alertsPage.description")}>
-        <button className="button" onClick={() => setCreating(true)}><CirclePlus size={18} />{t("alertsPage.create")}</button>
+      <PageHeader eyebrow={t("alertsPage.eyebrow")} title={t("alertsPage.title")} description={t(readOnly ? "alertsPage.staffDescription" : "alertsPage.description")}>
+        {!readOnly && <button className="button" onClick={() => setCreating(true)}><CirclePlus size={18} />{t("alertsPage.create")}</button>}
       </PageHeader>
       <section className="stat-grid alerts-stat-grid" aria-label={t("alertsPage.summary")}><div className="stat-card"><div className="stat-top"><span>{t("alertsPage.activeCount")}</span><BellRing size={20} aria-hidden="true" /></div><strong>{activeCount}</strong><small>{t("alertsPage.activeCountNote")}</small></div></section>
       <section className="panel filter-panel"><div className="filters">
@@ -43,7 +58,7 @@ export default function Alerts() {
         <ResourceState resource={resource} copy={{ loading: t("alertsPage.loading"), retry: t("alertsPage.retry"), error: t }}>{resource.data?.length ? <AlertRecords alerts={resource.data} onSelect={setSelected} t={t} /> : <EmptyState title={t("alertsPage.empty")} description={t("alertsPage.emptyDescription")} />}</ResourceState>
       </section>
       {creating && <AlertForm onClose={() => setCreating(false)} onSaved={(alert) => { setCreating(false); updateSelected(alert); }} />}
-      {selected && <AlertDetail alert={selected} onClose={() => setSelected(null)} onUpdated={updateSelected} onCreateRequest={() => { setRequestForAlert(selected); setSelected(null); }} />}
+      {selected && <AlertDetail alert={selected} readOnly={readOnly} onClose={closeSelected} onUpdated={updateSelected} onCreateRequest={() => { setRequestForAlert(selected); setSelected(null); }} />}
       {requestForAlert && <AlertMaintenanceRequestForm alert={requestForAlert} onClose={() => setRequestForAlert(null)} onSaved={(alert) => { setRequestForAlert(null); updateSelected(alert); }} />}
     </>
   );
@@ -67,10 +82,10 @@ function AlertForm({ onClose, onSaved }) {
 
 function SelectField({ label, name, values, t }) { return <Field label={label} required>{(id) => <select id={id} name={name} required defaultValue=""><option value="">{t("alertsPage.selectOption")}</option>{values.map((value) => <option key={value} value={value}>{t(value)}</option>)}</select>}</Field>; }
 
-function AlertDetail({ alert, onClose, onUpdated, onCreateRequest }) {
+function AlertDetail({ alert, onClose, onUpdated, onCreateRequest, readOnly }) {
   const { t } = useLanguage(); const action = useAction(); const toast = useToast();
   const update = (operation, success) => action.run(async () => { const updatedAlert = await operation(); toast(t(success)); onUpdated(updatedAlert); });
-  return <Modal title={t("alertsPage.alertDetails")} onClose={onClose} busy={action.busy} closeLabel={t("alertsPage.closeDialog")}><div className="alert-detail"><div className="record-top"><Badge value={alert.severity} /><Badge value={alert.status} /></div><h3>{alert.title}</h3><p>{alert.description}</p><dl><div><dt>{t("alertsPage.building")}</dt><dd>{alert.building.building_name}</dd></div><div><dt>{t("alertsPage.equipment")}</dt><dd>{alert.equipment ? `${alert.equipment.equipment_name} · ${alert.equipment.location}` : t("alertsPage.generalBuilding")}</dd></div><div><dt>{t("alertsPage.category")}</dt><dd>{t(alert.category)}</dd></div><div><dt>{t("alertsPage.created")}</dt><dd>{dateTime(alert.created_at)}</dd></div>{alert.acknowledged_at && <div><dt>{t("alertsPage.acknowledged")}</dt><dd>{dateTime(alert.acknowledged_at)} {alert.acknowledged_by && `· ${alert.acknowledged_by.full_name}`}</dd></div>}{alert.resolved_at && <div><dt>{t("alertsPage.resolved")}</dt><dd>{dateTime(alert.resolved_at)} {alert.resolved_by && `· ${alert.resolved_by.full_name}`}</dd></div>}{alert.maintenance_request && <div><dt>{t("alertsPage.linkedRequest")}</dt><dd><Link className="text-button" to={`/admin/requests/${alert.maintenance_request.request_id}`}>{t("alertsPage.viewLinkedRequest")}</Link></dd></div>}</dl><div className="form-actions">{alert.status === "ACTIVE" && <SubmitButton busy={action.busy} busyLabel={t("alertsPage.acknowledging")} onClick={() => update(() => alertService.acknowledge(alert.alert_id), "alertsPage.acknowledgeSuccess")}>{t("alertsPage.acknowledge")}</SubmitButton>}{alert.status !== "RESOLVED" && !alert.maintenance_request && <button className="button-secondary" type="button" disabled={action.busy} onClick={onCreateRequest}>{t("alertsPage.createMaintenanceRequest")}</button>}{alert.status !== "RESOLVED" && <SubmitButton busy={action.busy} busyLabel={t("alertsPage.resolving")} onClick={() => update(() => alertService.resolve(alert.alert_id), "alertsPage.resolveSuccess")}>{t("alertsPage.resolve")}</SubmitButton>}</div><ErrorAlert message={t(action.error)} /></div></Modal>;
+  return <Modal title={t("alertsPage.alertDetails")} onClose={onClose} busy={action.busy} closeLabel={t("alertsPage.closeDialog")}><div className="alert-detail"><div className="record-top"><Badge value={alert.severity} /><Badge value={alert.status} /></div><h3>{alert.title}</h3><p>{alert.description}</p><dl><div><dt>{t("alertsPage.building")}</dt><dd>{alert.building.building_name}</dd></div><div><dt>{t("alertsPage.equipment")}</dt><dd>{alert.equipment ? `${alert.equipment.equipment_name} · ${alert.equipment.location}` : t("alertsPage.generalBuilding")}</dd></div><div><dt>{t("alertsPage.category")}</dt><dd>{t(alert.category)}</dd></div><div><dt>{t("alertsPage.created")}</dt><dd>{dateTime(alert.created_at)}</dd></div>{alert.acknowledged_at && <div><dt>{t("alertsPage.acknowledged")}</dt><dd>{dateTime(alert.acknowledged_at)} {alert.acknowledged_by && `· ${alert.acknowledged_by.full_name}`}</dd></div>}{alert.resolved_at && <div><dt>{t("alertsPage.resolved")}</dt><dd>{dateTime(alert.resolved_at)} {alert.resolved_by && `· ${alert.resolved_by.full_name}`}</dd></div>}{alert.maintenance_request && <div><dt>{t("alertsPage.linkedRequest")}</dt><dd><Link className="text-button" to={`/admin/requests/${alert.maintenance_request.request_id}`}>{t("alertsPage.viewLinkedRequest")}</Link></dd></div>}</dl><div className="form-actions">{!readOnly && alert.status === "ACTIVE" && <SubmitButton busy={action.busy} busyLabel={t("alertsPage.acknowledging")} onClick={() => update(() => alertService.acknowledge(alert.alert_id), "alertsPage.acknowledgeSuccess")}>{t("alertsPage.acknowledge")}</SubmitButton>}{!readOnly && alert.status !== "RESOLVED" && !alert.maintenance_request && <button className="button-secondary" type="button" disabled={action.busy} onClick={onCreateRequest}>{t("alertsPage.createMaintenanceRequest")}</button>}{!readOnly && alert.status !== "RESOLVED" && <SubmitButton busy={action.busy} busyLabel={t("alertsPage.resolving")} onClick={() => update(() => alertService.resolve(alert.alert_id), "alertsPage.resolveSuccess")}>{t("alertsPage.resolve")}</SubmitButton>}</div><ErrorAlert message={t(action.error)} /></div></Modal>;
 }
 
 function AlertMaintenanceRequestForm({ alert, onClose, onSaved }) {

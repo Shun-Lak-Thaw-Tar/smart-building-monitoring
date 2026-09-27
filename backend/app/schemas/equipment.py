@@ -31,7 +31,7 @@ class EquipmentCreate(BaseModel):
     building_id: DatabaseId
     equipment_name: str = Field(min_length=1, max_length=150)
     equipment_type: str = Field(min_length=1, max_length=100)
-    location: str = Field(min_length=1, max_length=150)
+    location: str | None = Field(default=None, min_length=1, max_length=150)
     status: EquipmentStatus = EquipmentStatus.OPERATIONAL
     room_id: DatabaseId | None = None
 

@@ -10,6 +10,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from .building import Building
     from .equipment import Equipment
+    from .maintenance_request import MaintenanceRequest
 
 
 class Room(Base):
@@ -26,3 +27,4 @@ class Room(Base):
 
     building: Mapped[Building] = relationship(back_populates="rooms")
     equipment: Mapped[list[Equipment]] = relationship(back_populates="room", passive_deletes="all")
+    requests: Mapped[list[MaintenanceRequest]] = relationship(back_populates="room", passive_deletes="all")

@@ -24,6 +24,26 @@ def test_admin_can_persist_simulated_event_and_create_one_alert(auth_db, tokens,
     assert len(connection.scalars(select(SafetyEvent)).all()) == 2
 
 
+@pytest.mark.parametrize(
+    "event",
+    [
+        payload(section="HAZARD_ADVISORY", building_id=None, name="Demo hazard event", event_type="FLOOD", status="ACTIVE", severity="CRITICAL"),
+        payload(section="SECURITY_ACCESS", name="Demo forced entry", event_type="MAIN_ENTRANCE", status="FORCED_ENTRY", severity="CRITICAL"),
+    ],
+)
+def test_serious_simulations_create_one_active_alert_per_condition(auth_db, tokens, api_request, event):
+    first = api_request("/api/safety/events", "POST", headers=tokens["ADMIN"], json=event)
+    second = api_request("/api/safety/events", "POST", headers=tokens["ADMIN"], json=event)
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    connection, _ = auth_db
+    title = f"[SIMULATION] {event['name']}: {event['event_type']}"
+    alerts = connection.scalars(select(Alert).where(Alert.title == title, Alert.status == "ACTIVE")).all()
+    expected_count = 3 if event["building_id"] is None else 1
+    assert len(alerts) == expected_count
+
+
 def test_staff_can_read_but_cannot_trigger_simulations(auth_db, tokens, api_request):
     assert api_request("/api/safety/events", "POST", headers=tokens["STAFF"], json=payload()).status_code == 403
     assert api_request("/api/safety/events", headers=tokens["STAFF"]).status_code == 200
