@@ -5,12 +5,6 @@ Engineering programme, University of Sunderland. The planned responsive prototyp
 supports Office Staff and Administrators/Maintenance staff across Building 216,
 Building 209 and JS Building, using simulated environmental readings.
 
-The backend now implements WBS 3.2–3.7: PostgreSQL, resource reads, login/JWT/RBAC,
-maintenance requests, equipment management, completed maintenance records and
-derived building monitoring. WBS 3.8–3.10 now provides the responsive Staff and Admin
-frontend, with login, requests, management tools and simulated monitoring. Dashboard-specific
-APIs and real IoT are not implemented.
-
 ## Stack and architecture
 
 Browser → React / Vite / Tailwind → Axios REST requests → FastAPI → SQLAlchemy → PostgreSQL.
@@ -209,11 +203,3 @@ From `backend/`:
 .\.venv\Scripts\python.exe -m alembic history
 Invoke-RestMethod http://localhost:8000/api/health
 ```
-
-The last command requires the backend server running in another terminal. Alembic
-heads/history show initial revision `9cf1817549e9`.
-
-## Next task
-
-**WBS 3.11 — Full Integration, Validation, Error Handling and Hardening**.
-Not started.
