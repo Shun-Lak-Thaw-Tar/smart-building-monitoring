@@ -9,16 +9,17 @@ import { equipmentService } from "../services/equipmentService";
 import { buildingService } from "../services/buildingService";
 import { roomService } from "../services/roomService";
 import { EquipmentIntelligencePanel } from "./EquipmentIntelligence";
+import { EquipmentSensorsPanel } from "./EquipmentSensors";
 import { Badge, EmptyState, ErrorAlert, Field, Modal, PageHeader, ResourceState, SubmitButton } from "../components/UI";
 import { equipmentStatuses } from "../utils/format";
 
 const types = ["Air Conditioning", "Lighting", "Projector", "Computer / IT", "AV Equipment", "Lift", "Water Pump", "Fire / Safety Device", "Other"];
 export default function Equipment() {
   const { t } = useLanguage(); const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") === "intelligence" ? "intelligence" : "management";
+  const tab = ["intelligence", "sensors"].includes(params.get("tab")) ? params.get("tab") : "management";
   return <><PageHeader eyebrow={t("equipmentPage.eyebrow")} title={t("equipmentPage.title")} description={t("equipmentPage.description")} />
-    <div className="tabs" role="tablist" aria-label={t("equipmentPage.tabs")}><button role="tab" aria-selected={tab === "management"} className={tab === "management" ? "active" : ""} onClick={() => setParams({})}>{t("equipmentPage.managementTab")}</button><button role="tab" aria-selected={tab === "intelligence"} className={tab === "intelligence" ? "active" : ""} onClick={() => setParams({ tab: "intelligence" })}>{t("equipmentPage.intelligenceTab")}</button></div>
-    {tab === "management" ? <Management /> : <EquipmentIntelligencePanel />}</>;
+    <div className="tabs" role="tablist" aria-label={t("equipmentPage.tabs")}><button role="tab" aria-selected={tab === "management"} className={tab === "management" ? "active" : ""} onClick={() => setParams({})}>{t("equipmentPage.managementTab")}</button><button role="tab" aria-selected={tab === "intelligence"} className={tab === "intelligence" ? "active" : ""} onClick={() => setParams({ tab: "intelligence" })}>{t("equipmentPage.intelligenceTab")}</button><button role="tab" aria-selected={tab === "sensors"} className={tab === "sensors" ? "active" : ""} onClick={() => setParams({ tab: "sensors" })}>{t("equipmentPage.sensorsTab")}</button></div>
+    {tab === "management" ? <Management /> : tab === "intelligence" ? <EquipmentIntelligencePanel /> : <EquipmentSensorsPanel />}</>;
 }
 function Management() {
   const { t } = useLanguage(); const toast = useToast(); const [building, setBuilding] = useState(""), [status, setStatus] = useState(""), [search, setSearch] = useState(""), [editing, setEditing] = useState(null), [removing, setRemoving] = useState(null);
