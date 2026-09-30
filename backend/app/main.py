@@ -24,7 +24,7 @@ for resource_router in (buildings.router, equipment.router, environment.router, 
     app.include_router(resource_router, dependencies=[Depends(get_current_user)],
                        responses={401: {"description": "Authentication required or invalid token"}})
 
-if settings.app_env == "development":
+if settings.cors_origins:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,

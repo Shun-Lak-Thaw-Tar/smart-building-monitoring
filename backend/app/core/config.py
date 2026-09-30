@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, field_validator
 from decimal import Decimal
 
 
@@ -26,6 +26,16 @@ class Settings(BaseSettings):
     demo_maintenance_admin_password: str | None = Field(default=None, repr=False)
     energy_tariff_per_kwh: Decimal = Decimal("0.20")
     energy_emission_factor_kg_per_kwh: Decimal = Decimal("0.45")
+
+    @field_validator("database_url", "test_database_url", mode="before")
+    @classmethod
+    def use_installed_postgres_driver(cls, value: str | None) -> str | None:
+        # Hosted PostgreSQL URLs omit the driver; this project uses psycopg 3.
+        if isinstance(value, str):
+            for prefix in ("postgres://", "postgresql://"):
+                if value.startswith(prefix):
+                    return "postgresql+psycopg://" + value[len(prefix):]
+        return value
 
 
 settings = Settings()
